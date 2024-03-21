@@ -4,10 +4,15 @@ use std::sync::Arc;
 use rocket::form::Form;
 use rocket::State;
 
+use time::PrimitiveDateTime;
+use time::macros::datetime;
+
 #[derive(FromForm, Copy, Clone)]
 struct Location {
     lat : f64,
     lon : f64,
+    date: PrimitiveDateTime,
+
 }
 
 struct LastLocation {
@@ -31,6 +36,7 @@ fn location(location: Form<Location>, last_location: &State<LastLocPointer>) {
         pos : Some (Location {
             lat: location.lat,
             lon: location.lon,
+            date: location.date,
         }),
     }
 }
@@ -39,7 +45,7 @@ fn location(location: Form<Location>, last_location: &State<LastLocPointer>) {
 fn index(last_location: &State<LastLocPointer>) -> String {
     let loc = last_location.lock().unwrap();
     match loc.pos {
-        Some(loc) => format!("lat: {}, lon: {}", loc.lat, loc.lon),
+        Some(loc) => format!("lat: {}, lon: {}, date: {}", loc.lat, loc.lon, loc.date),
         None => "No Location".to_string(),
     }
 }
