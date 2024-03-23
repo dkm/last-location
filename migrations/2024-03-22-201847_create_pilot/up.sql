@@ -1,0 +1,4 @@
+CREATE TABLE pilot (
+       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+       name VARCHAR (50)
+)

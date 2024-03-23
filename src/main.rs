@@ -1,57 +1,77 @@
-#[macro_use] extern crate rocket;
-use std::sync::Mutex;
-use std::sync::Arc;
+#[macro_use]
+extern crate rocket;
 use rocket::form::Form;
 use rocket::State;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-use time::PrimitiveDateTime;
-use time::macros::datetime;
+pub mod models;
+pub mod schema;
 
-#[derive(FromForm, Copy, Clone)]
-struct Location {
-    lat : f64,
-    lon : f64,
-    date: PrimitiveDateTime,
+use diesel::prelude::*;
+use dotenvy::dotenv;
+use models::{NewInfo, PilotInfo};
 
+use std::env;
+
+struct LastPilotInfo {
+    db: SqliteConnection,
 }
 
-struct LastLocation {
-    pos: Option<Location>,
-}
+type LastInfoPointer = Arc<Mutex<LastPilotInfo>>;
 
-type LastLocPointer = Arc<Mutex<LastLocation>>;
-
-impl LastLocation {
-    fn new() -> LastLocPointer {
-        let new_loc = LastLocation {
-            pos: None
-        };
-        Arc::new(Mutex::new(new_loc))
+impl LastPilotInfo {
+    fn new(db: SqliteConnection) -> LastInfoPointer {
+        Arc::new(Mutex::new(LastPilotInfo { db }))
     }
 }
 
-#[post("/location", data="<location>")]
-fn location(location: Form<Location>, last_location: &State<LastLocPointer>) {
-    *last_location.lock().unwrap() = LastLocation {
-        pos : Some (Location {
-            lat: location.lat,
-            lon: location.lon,
-            date: location.date,
-        }),
-    }
+#[post("/info", data = "<newinfo>")]
+fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
+    use schema::info;
+
+    let pinfo: NewInfo = *newinfo;
+    let conn = &mut db.lock().unwrap().db;
+
+    let _: PilotInfo = diesel::insert_into(info::table)
+        .values(&pinfo)
+        .returning(PilotInfo::as_returning())
+        .get_result(conn)
+        .expect("Error saving new info");
 }
 
 #[get("/")]
-fn index(last_location: &State<LastLocPointer>) -> String {
-    let loc = last_location.lock().unwrap();
-    match loc.pos {
-        Some(loc) => format!("lat: {}, lon: {}, date: {}", loc.lat, loc.lon, loc.date),
-        None => "No Location".to_string(),
+fn index(db: &State<LastInfoPointer>) -> String {
+    use schema::info;
+    use schema::info::dsl::*;
+
+    let conn = &mut db.lock().unwrap().db;
+
+    let last_pos = info
+        .filter(id.eq(1))
+        .limit(1)
+        .select(PilotInfo::as_select())
+        .order(ts.desc())
+        .load(conn);
+
+    match last_pos {
+        Ok(pos) => format!(
+            "lat: {}, lon: {}, date: {}",
+            pos[0].lat, pos[0].lon, pos[0].ts
+        ),
+        _ => "none".to_string(),
     }
 }
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().manage(LastLocation::new())
-                   .mount("/", routes![index, location])
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = SqliteConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
+
+    rocket::build()
+        .manage(LastPilotInfo::new(db))
+        .mount("/", routes![index, info])
 }
