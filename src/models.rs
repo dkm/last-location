@@ -1,10 +1,9 @@
-use diesel::prelude::*;
-use time::PrimitiveDateTime;
 use crate::schema::info;
-use rocket::serde::{Serialize, Deserialize};
+use diesel::prelude::*;
+use rocket::serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
-#[derive(Queryable, Selectable, FromForm, Copy, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Queryable, Selectable, FromForm, Copy, Clone, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
