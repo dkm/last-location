@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 diesel = { version = "2.1.5", features = ["sqlite", "time",  "returning_clauses_for_sqlite_3_35"] }
 dotenvy = "0.15.7"
-rocket = "0.5.0"
-time = "0.3.34"
+rocket = { version = "0.5.0", features = ["json"] }
+time = { version = "0.3.34", features = ["serde"] }

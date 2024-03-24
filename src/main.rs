@@ -11,6 +11,7 @@ pub mod schema;
 use diesel::prelude::*;
 use dotenvy::dotenv;
 use models::{NewInfo, PilotInfo};
+use rocket::serde::json::{Json, Value, json};
 
 use std::env;
 
@@ -24,6 +25,14 @@ impl LastPilotInfo {
     fn new(db: SqliteConnection) -> LastInfoPointer {
         Arc::new(Mutex::new(LastPilotInfo { db }))
     }
+}
+
+#[catch(404)]
+fn not_found() -> Value {
+    json!({
+        "status": "error",
+        "reason": "Resource was not found."
+    })
 }
 
 #[post("/info", data = "<newinfo>")]
@@ -40,8 +49,8 @@ fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
         .expect("Error saving new info");
 }
 
-#[get("/")]
-fn index(db: &State<LastInfoPointer>) -> String {
+#[get("/", format = "json")]
+fn index(db: &State<LastInfoPointer>) -> Option<Json<PilotInfo>>  {
     use schema::info;
     use schema::info::dsl::*;
 
@@ -55,11 +64,8 @@ fn index(db: &State<LastInfoPointer>) -> String {
         .load(conn);
 
     match last_pos {
-        Ok(pos) => format!(
-            "lat: {}, lon: {}, date: {}",
-            pos[0].lat, pos[0].lon, pos[0].ts
-        ),
-        _ => "none".to_string(),
+        Ok(pos) => Some(Json(pos[0])),
+        _ => None,
     }
 }
 

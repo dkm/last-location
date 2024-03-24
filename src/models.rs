@@ -1,9 +1,11 @@
 use diesel::prelude::*;
 use time::PrimitiveDateTime;
-
 use crate::schema::info;
+use rocket::serde::{Serialize, Deserialize};
 
 #[derive(Queryable, Selectable, FromForm, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct PilotInfo {
