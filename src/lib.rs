@@ -1,6 +1,6 @@
+pub mod json;
 pub mod models;
 pub mod schema;
-pub mod json;
 
 use crate::models::{NewInfo, PilotInfo};
 
@@ -31,18 +31,24 @@ pub fn add_info(new_info: &NewInfo, conn: &mut SqliteConnection) {
         .expect("Error saving new info");
 }
 
-pub fn get_last_info(conn: &mut SqliteConnection) -> Option<PilotInfo> {
+pub fn get_last_info(conn: &mut SqliteConnection, pilot_id: i32) -> Option<PilotInfo> {
     use schema::info::dsl::*;
 
     let last_pos = info
-        .filter(id.eq(1))
+        .filter(id.eq(pilot_id))
         .limit(1)
         .select(PilotInfo::as_select())
         .order(ts.desc())
         .load(conn);
 
     match last_pos {
-        Ok(pos) => Some(pos[0]),
+        Ok(pos) => {
+            if pos.len() > 0 {
+                Some(pos[0])
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

@@ -5,7 +5,7 @@ use rocket::serde::{Deserialize, Serialize};
 use rocket::FromForm;
 use time::PrimitiveDateTime;
 
-#[derive(Queryable, Selectable, FromForm, Copy, Clone, Serialize, Deserialize)]
+#[derive(Queryable, Selectable, FromForm, Copy, Clone, Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]

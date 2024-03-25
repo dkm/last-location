@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate rocket;
 use rocket::form::Form;
-use rocket::State;
+use rocket::{
+    fs::{relative, FileServer},
+    State,
+};
 
 use last_position::{LastInfoPointer, LastPilotInfo};
 
@@ -19,11 +22,11 @@ fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
     last_position::add_info(&pinfo, conn);
 }
 
-#[get("/")]
-fn index(db: &State<LastInfoPointer>) -> Option<String> {
+#[get("/<pilot_id>")]
+fn index(db: &State<LastInfoPointer>, pilot_id: i32) -> Option<String> {
     let conn = &mut db.lock().unwrap().db;
 
-    last_position::get_last_info(conn).map(|pos| {
+    last_position::get_last_info(conn, pilot_id).map(|pos| {
         format!(
             "lat:{}, lon:{}, accuracy:{}",
             pos.lat, pos.lon, pos.accuracy
@@ -42,5 +45,6 @@ fn rocket() -> _ {
     rocket::build()
         .manage(LastPilotInfo::new(db))
         .attach(last_position::json::stage())
-        .mount("/", routes![index, info])
+        .mount("/", FileServer::from(relative!("/static")))
+        .mount("/api/", routes![index, info])
 }

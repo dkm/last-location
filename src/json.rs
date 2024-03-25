@@ -1,15 +1,15 @@
 use crate::models::PilotInfo;
 
 use rocket::serde::json::{json, Json, Value};
-use rocket::{State, catchers, routes, catch, get};
+use rocket::{catch, catchers, get, routes, State};
 
 use crate::LastInfoPointer;
 
-#[get("/", format = "json")]
-fn index(db: &State<LastInfoPointer>) -> Option<Json<PilotInfo>> {
+#[get("/<pilot_id>", format = "json")]
+fn index(db: &State<LastInfoPointer>, pilot_id: i32) -> Option<Json<PilotInfo>> {
     let conn = &mut db.lock().unwrap().db;
 
-    match crate::get_last_info(conn) {
+    match crate::get_last_info(conn, pilot_id) {
         Some(pos) => Some(Json(pos)),
         _ => None,
     }
@@ -26,8 +26,8 @@ fn not_found() -> Value {
 pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("JSON", |rocket| async {
         rocket
-            .mount("/json", routes![index])
-            .register("/json", catchers![not_found])
+            .mount("/api/json", routes![index])
+            .register("/api/json", catchers![not_found])
         //              .manage(LastPilotInfo::new(db))
     })
 }
