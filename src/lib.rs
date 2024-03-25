@@ -1,5 +1,9 @@
+pub mod models;
+pub mod schema;
+pub mod json;
+
 use crate::models::{NewInfo, PilotInfo};
-use crate::schema;
+
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use std::sync::Arc;

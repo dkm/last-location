@@ -1,18 +1,12 @@
-mod db;
-mod json;
-
 #[macro_use]
 extern crate rocket;
 use rocket::form::Form;
 use rocket::State;
 
-pub mod models;
-pub mod schema;
-
-use crate::db::{LastInfoPointer, LastPilotInfo};
+use last_position::{LastInfoPointer, LastPilotInfo};
 
 use dotenvy::dotenv;
-use models::NewInfo;
+use last_position::models::NewInfo;
 
 use diesel::prelude::*;
 use std::env;
@@ -22,14 +16,14 @@ fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
     let pinfo: NewInfo = *newinfo;
     let conn = &mut db.lock().unwrap().db;
 
-    db::add_info(&pinfo, conn);
+    last_position::add_info(&pinfo, conn);
 }
 
 #[get("/")]
 fn index(db: &State<LastInfoPointer>) -> Option<String> {
     let conn = &mut db.lock().unwrap().db;
 
-    db::get_last_info(conn).map(|pos| {
+    last_position::get_last_info(conn).map(|pos| {
         format!(
             "lat:{}, lon:{}, accuracy:{}",
             pos.lat, pos.lon, pos.accuracy
@@ -47,6 +41,6 @@ fn rocket() -> _ {
 
     rocket::build()
         .manage(LastPilotInfo::new(db))
-        .attach(json::stage())
+        .attach(last_position::json::stage())
         .mount("/", routes![index, info])
 }

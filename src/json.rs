@@ -1,15 +1,15 @@
 use crate::models::PilotInfo;
 
 use rocket::serde::json::{json, Json, Value};
-use rocket::State;
+use rocket::{State, catchers, routes, catch, get};
 
-use crate::db::{self, LastInfoPointer};
+use crate::LastInfoPointer;
 
 #[get("/", format = "json")]
 fn index(db: &State<LastInfoPointer>) -> Option<Json<PilotInfo>> {
     let conn = &mut db.lock().unwrap().db;
 
-    match db::get_last_info(conn) {
+    match crate::get_last_info(conn) {
         Some(pos) => Some(Json(pos)),
         _ => None,
     }

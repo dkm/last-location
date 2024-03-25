@@ -1,6 +1,8 @@
 use crate::schema::info;
+
 use diesel::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
+use rocket::FromForm;
 use time::PrimitiveDateTime;
 
 #[derive(Queryable, Selectable, FromForm, Copy, Clone, Serialize, Deserialize)]
