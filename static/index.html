@@ -9,15 +9,30 @@
 </head>
 <body>
   <ul>
-    <li id="pilot_id"/>
-    <li id="pilot_latitude" />
-    <li id="pilot_longitude" />
-    <li id="pilot_accuracy" />
-    <li id="pilot_timestamp" />
+    <li>Pilot: <div id="pilot_id"/> </li>
+    <li>Accuracy: <div id="pilot_accuracy" /> </li>
+    <li>Location source: <div id="pilot_provider" /> </li>
+
+    <li>Latitude: <div id="pilot_latitude" /> </li>
+    <li>Longitude: <div id="pilot_longitude" /> </li>
+    <li>Altitude: <div id="pilot_altitude" /> </li>
+
+    <li>Speed: <div id="pilot_speed" /> </li>
+    <li>Heading: <div id="pilot_heading" /> </li>
+
+    <li>Battery: <div id="pilot_battery" /> </li>
+
+    <li>Timestamp: <div id="pilot_timestamp" /> </li>
+
   </ul>
+
+<p>
+  <a href="" id="osm_link">Openstreetmap link</a>
+</p>
 </body>
 
 <script>
   load_last_position(1);
+  set_OSM_url();
 </script>
 </html>
