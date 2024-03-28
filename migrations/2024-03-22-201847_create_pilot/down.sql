@@ -1,1 +1,2 @@
-DROP TABLE pilot
+DROP TABLE pilot;
+DROP TABLE info;

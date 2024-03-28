@@ -1,12 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    info (ts) {
+    info (id) {
+        pilot_id -> Integer,
         id -> Integer,
+        ts -> Integer,
         lat -> Double,
         lon -> Double,
-        accuracy -> Integer,
-        ts -> Timestamp,
+        altitude -> Nullable<Double>,
+        speed -> Nullable<Double>,
+        direction -> Nullable<Double>,
+        accuracy -> Nullable<Double>,
+        loc_provider -> Nullable<Text>,
+        battery -> Nullable<Double>,
     }
 }
 
@@ -17,7 +23,7 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(info -> pilot (id));
+diesel::joinable!(info -> pilot (pilot_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     info,

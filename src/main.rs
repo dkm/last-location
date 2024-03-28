@@ -18,7 +18,6 @@ use std::env;
 fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
     let pinfo: NewInfo = *newinfo;
     let conn = &mut db.lock().unwrap().db;
-
     last_position::add_info(&pinfo, conn);
 }
 

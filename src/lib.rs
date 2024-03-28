@@ -23,7 +23,6 @@ impl LastPilotInfo {
 
 pub fn add_info(new_info: &NewInfo, conn: &mut SqliteConnection) {
     use schema::info;
-
     let _: PilotInfo = diesel::insert_into(info::table)
         .values(new_info)
         .returning(PilotInfo::as_returning())
@@ -38,13 +37,13 @@ pub fn get_last_info(conn: &mut SqliteConnection, pilot_id: i32) -> Option<Pilot
         .filter(id.eq(pilot_id))
         .limit(1)
         .select(PilotInfo::as_select())
-        .order(ts.desc())
+        .order(id.desc())
         .load(conn);
 
     match last_pos {
         Ok(pos) => {
             if pos.len() > 0 {
-                Some(pos[0])
+                Some(pos[0].clone())
             } else {
                 None
             }
