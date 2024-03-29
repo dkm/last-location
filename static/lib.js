@@ -1,5 +1,3 @@
-let global_info = null;
-
 // Ugly routine to convert the serialized JSON that seems to be encoded in
 // Ordinal form.
 function convert_timestamp(json_date) {
@@ -16,7 +14,6 @@ function convert_from_epoch(epoch){
   d.setUTCSeconds(epoch);
   return d;
 }
-
 
 
 function load_last_position(pilot_id, elt_id) {
@@ -38,10 +35,8 @@ function load_last_position(pilot_id, elt_id) {
     document.getElementById('pilot_battery').innerHTML = pilotInfo.battery;
 
     document.getElementById('pilot_timestamp').innerHTML = convert_from_epoch(pilotInfo.ts);
-  })
-}
 
-function set_OSM_url() {
-  let a = document.getElementById('osm_link');
-  a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
+    let a = document.getElementById('osm_link');
+    a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
+  })
 }
