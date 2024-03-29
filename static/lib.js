@@ -38,5 +38,15 @@ function load_last_position(pilot_id, elt_id) {
 
     let a = document.getElementById('osm_link');
     a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
-  })
+
+    var map = L.map('map').setView([pilotInfo.lat, pilotInfo.lon], 13);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    L.marker([pilotInfo.lat, pilotInfo.lon]).addTo(map)
+     .bindPopup('Last position:<br>' + convert_from_epoch(pilotInfo.ts))
+     .openPopup()
+ })
 }
