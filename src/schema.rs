@@ -4,7 +4,8 @@ diesel::table! {
     info (id) {
         pilot_id -> Integer,
         id -> Integer,
-        ts -> Integer,
+        device_timestamp -> Integer,
+        server_timestamp -> Integer,
         lat -> Double,
         lon -> Double,
         altitude -> Nullable<Double>,

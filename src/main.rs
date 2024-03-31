@@ -7,7 +7,7 @@ use rocket::{
 };
 
 use last_position::{LastInfoPointer, LastPilotInfo};
-
+use std::time::{SystemTime, UNIX_EPOCH};
 use dotenvy::dotenv;
 use last_position::models::NewInfo;
 
@@ -16,7 +16,9 @@ use std::env;
 
 #[post("/info", data = "<newinfo>")]
 fn info(newinfo: Form<NewInfo>, db: &State<LastInfoPointer>) {
-    let pinfo: NewInfo = *newinfo;
+    let mut pinfo: NewInfo = *newinfo;
+    // this will get messy in 2038.
+    pinfo.server_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Can't get epoch").as_secs() as i32);
     let conn = &mut db.lock().unwrap().db;
     last_position::add_info(&pinfo, conn);
 }

@@ -34,7 +34,8 @@ function load_last_position(pilot_id, elt_id) {
     document.getElementById('pilot_heading').innerHTML = pilotInfo.direction;
     document.getElementById('pilot_battery').innerHTML = pilotInfo.battery;
 
-    document.getElementById('pilot_timestamp').innerHTML = convert_from_epoch(pilotInfo.ts);
+    document.getElementById('pilot_device_timestamp').innerHTML = convert_from_epoch(pilotInfo.device_timestamp);
+    document.getElementById('pilot_server_timestamp').innerHTML = convert_from_epoch(pilotInfo.server_timestamp);
 
     let a = document.getElementById('osm_link');
     a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
@@ -46,7 +47,7 @@ function load_last_position(pilot_id, elt_id) {
     }).addTo(map);
 
     L.marker([pilotInfo.lat, pilotInfo.lon]).addTo(map)
-     .bindPopup('Last position:<br>' + convert_from_epoch(pilotInfo.ts))
+     .bindPopup('Last position:<br>' + convert_from_epoch(pilotInfo.device_timestamp))
      .openPopup()
  })
 }

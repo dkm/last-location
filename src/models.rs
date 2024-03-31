@@ -13,7 +13,10 @@ pub struct PilotInfo {
     pub pilot_id: i32,
     pub id: i32,
 
-    pub ts: i32,
+    // See you in 2038...
+    pub device_timestamp: i32,
+    pub server_timestamp: i32,
+
     pub lat: f64,
     pub lon: f64,
     pub altitude: Option<f64>,
@@ -31,7 +34,8 @@ pub struct PilotInfo {
 pub struct NewInfo<'a> {
     pub pilot_id: i32,
 
-    pub ts: Option<i32>,
+    pub device_timestamp: i32,
+    pub server_timestamp: Option<i32>,
 
     pub lat: f64,
     pub lon: f64,

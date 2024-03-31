@@ -5,10 +5,10 @@ CREATE TABLE pilot (
 
 CREATE TABLE info (
        pilot_id INTEGER NOT NULL,
-
        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 
-       ts INTEGER NOT NULL,
+       device_timestamp INTEGER NOT NULL,
+       server_timestamp INTEGER NOT NULL,
 
        lat DOUBLE NOT NULL,
        lon DOUBLE NOT NULL,
