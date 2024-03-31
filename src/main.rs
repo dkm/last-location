@@ -30,7 +30,7 @@ fn index(db: &State<LastInfoPointer>, pilot_id: i32) -> Option<String> {
     last_position::get_last_info(conn, pilot_id).map(|pos| {
         format!(
             "lat:{}, lon:{}, accuracy:{}",
-            pos.lat, pos.lon, pos.accuracy
+            pos.lat, pos.lon, (if let Some(acc) = pos.accuracy {acc.to_string()} else {"None".to_string()})
         )
     })
 }
