@@ -49,3 +49,18 @@ fn rocket() -> _ {
         .mount("/", FileServer::from(relative!("/static")))
         .mount("/api/", routes![index, info])
 }
+
+#[cfg(test)]
+mod test {
+    use super::rocket;
+    use rocket::local::blocking::Client;
+    use rocket::http::Status;
+
+    #[test]
+    fn hello_world() {
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+        let response = client.get(uri!("/api/1")).dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        assert_eq!(response.into_string().unwrap(), "lat:45.20283236, lon:5.75199348, accuracy:14.032693862915039");
+    }
+}
