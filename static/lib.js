@@ -16,38 +16,39 @@ function convert_from_epoch(epoch){
 }
 
 
-function load_last_position(pilot_id, elt_id) {
-  fetch ("/api/json/" + pilot_id)
+function load_last_position(user_id, elt_id) {
+  fetch ("/api/json/" + user_id)
     .then(response => {
       return response.json();
     })
-  .then(pilotInfo => {
-    global_info = pilotInfo;
+  .then(userInfo => {
+    global_info = userInfo;
 
-    document.getElementById('pilot_id').innerHTML = pilotInfo.id;
-    document.getElementById('pilot_accuracy').innerHTML = pilotInfo.accuracy;
-    document.getElementById('pilot_provider').innerHTML = pilotInfo.loc_provider;
-    document.getElementById('pilot_latitude').innerHTML = pilotInfo.lat;
-    document.getElementById('pilot_longitude').innerHTML = pilotInfo.lon;
-    document.getElementById('pilot_altitude').innerHTML = pilotInfo.altitude;
-    document.getElementById('pilot_speed').innerHTML = pilotInfo.speed;
-    document.getElementById('pilot_heading').innerHTML = pilotInfo.direction;
-    document.getElementById('pilot_battery').innerHTML = pilotInfo.battery;
+    document.getElementById('user_id').innerHTML = userInfo.user_id;
+    document.getElementById('user_location_id').innerHTML = userInfo.id;
+    document.getElementById('user_accuracy').innerHTML = userInfo.accuracy;
+    document.getElementById('user_provider').innerHTML = userInfo.loc_provider;
+    document.getElementById('user_latitude').innerHTML = userInfo.lat;
+    document.getElementById('user_longitude').innerHTML = userInfo.lon;
+    document.getElementById('user_altitude').innerHTML = userInfo.altitude;
+    document.getElementById('user_speed').innerHTML = userInfo.speed;
+    document.getElementById('user_heading').innerHTML = userInfo.direction;
+    document.getElementById('user_battery').innerHTML = userInfo.battery;
 
-    document.getElementById('pilot_device_timestamp').innerHTML = convert_from_epoch(pilotInfo.device_timestamp);
-    document.getElementById('pilot_server_timestamp').innerHTML = convert_from_epoch(pilotInfo.server_timestamp);
+    document.getElementById('user_device_timestamp').innerHTML = convert_from_epoch(userInfo.device_timestamp);
+    document.getElementById('user_server_timestamp').innerHTML = convert_from_epoch(userInfo.server_timestamp);
 
     let a = document.getElementById('osm_link');
     a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
 
-    var map = L.map('map').setView([pilotInfo.lat, pilotInfo.lon], 13);
+    var map = L.map('map').setView([userInfo.lat, userInfo.lon], 13);
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    L.marker([pilotInfo.lat, pilotInfo.lon]).addTo(map)
-     .bindPopup('Last position:<br>' + convert_from_epoch(pilotInfo.device_timestamp))
+    L.marker([userInfo.lat, userInfo.lon]).addTo(map)
+     .bindPopup('Last position:<br>' + convert_from_epoch(userInfo.device_timestamp))
      .openPopup()
  })
 }
