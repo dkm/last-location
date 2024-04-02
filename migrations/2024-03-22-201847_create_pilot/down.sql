@@ -1,2 +1,2 @@
-DROP TABLE pilot;
+DROP TABLE users;
 DROP TABLE info;

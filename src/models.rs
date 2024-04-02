@@ -1,16 +1,24 @@
-use crate::schema::info;
+use crate::schema::{info, users};
 
 use diesel::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::FromForm;
-use time::PrimitiveDateTime;
+
+#[derive(Queryable, Selectable, FromForm, Clone, Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+#[diesel(table_name = users)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct UserInfo {
+    pub id: i32,
+    pub name: Option<String>,
+}
 
 #[derive(Queryable, Selectable, FromForm, Clone, Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct PilotInfo {
-    pub pilot_id: i32,
+pub struct UserLocationPoint {
+    pub user_id: i32,
     pub id: i32,
 
     // See you in 2038...
@@ -29,10 +37,10 @@ pub struct PilotInfo {
     pub battery: Option<f64>,
 }
 
-#[derive(Insertable, FromForm, Copy, Clone)]
+#[derive(Insertable, FromForm, Clone)]
 #[diesel(table_name = info)]
-pub struct NewInfo<'a> {
-    pub pilot_id: i32,
+pub struct NewInfo {
+    pub user_id: i32,
 
     pub device_timestamp: i32,
     pub server_timestamp: Option<i32>,
@@ -46,6 +54,6 @@ pub struct NewInfo<'a> {
 
     pub accuracy: Option<f64>,
 
-    pub loc_provider: Option<&'a str>,
+    pub loc_provider: Option<String>,
     pub battery: Option<f64>,
 }

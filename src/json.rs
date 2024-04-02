@@ -1,15 +1,13 @@
-use crate::models::PilotInfo;
+use crate::models::UserLocationPoint;
 
 use rocket::serde::json::{json, Json, Value};
-use rocket::{catch, catchers, get, routes, State};
+use rocket::{catch, catchers, get, routes};
 
-use crate::LastInfoPointer;
+use crate::Db;
 
-#[get("/<pilot_id>", format = "json")]
-fn index(db: &State<LastInfoPointer>, pilot_id: i32) -> Option<Json<PilotInfo>> {
-    let conn = &mut db.lock().unwrap().db;
-
-    match crate::get_last_info(conn, pilot_id) {
+#[get("/<user_id>", format = "json")]
+async fn index(db: Db, user_id: i32) -> Option<Json<UserLocationPoint>> {
+    match crate::get_last_info(&db, user_id).await {
         Some(pos) => Some(Json(pos)),
         _ => None,
     }
@@ -28,6 +26,5 @@ pub fn stage() -> rocket::fairing::AdHoc {
         rocket
             .mount("/api/json", routes![index])
             .register("/api/json", catchers![not_found])
-        //              .manage(LastPilotInfo::new(db))
     })
 }

@@ -1,10 +1,11 @@
-CREATE TABLE pilot (
+CREATE TABLE users (
        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
        name VARCHAR (50)
 );
 
 CREATE TABLE info (
-       pilot_id INTEGER NOT NULL,
+       user_id INTEGER NOT NULL,
+
        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 
        device_timestamp INTEGER NOT NULL,
@@ -23,5 +24,5 @@ CREATE TABLE info (
 
        battery DOUBLE,
 
-       FOREIGN KEY (pilot_id) REFERENCES pilot(id)
+       FOREIGN KEY (user_id) REFERENCES users(id)
 );

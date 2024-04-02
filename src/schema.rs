@@ -2,7 +2,7 @@
 
 diesel::table! {
     info (id) {
-        pilot_id -> Integer,
+        user_id -> Integer,
         id -> Integer,
         device_timestamp -> Integer,
         server_timestamp -> Integer,
@@ -18,15 +18,12 @@ diesel::table! {
 }
 
 diesel::table! {
-    pilot (id) {
+    users (id) {
         id -> Integer,
         name -> Nullable<Text>,
     }
 }
 
-diesel::joinable!(info -> pilot (pilot_id));
+diesel::joinable!(info -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    info,
-    pilot,
-);
+diesel::allow_tables_to_appear_in_same_query!(info, users,);
