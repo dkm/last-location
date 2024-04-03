@@ -8,11 +8,12 @@ use rocket::{Build, Rocket};
 use last_position::Db;
 use rocket::fs::{relative, FileServer};
 use std::time::{SystemTime, UNIX_EPOCH};
+
 use last_position::responders::ApiError;
 use std::env;
 
 #[post("/info", data = "<newinfo>")]
-async fn info(db: Db, newinfo: Form<NewInfo>) -> Result<(), ApiError>{
+async fn info(db: Db, newinfo: Form<NewInfo>) -> Result<(), ApiError> {
     let mut pinfo: NewInfo = newinfo.clone();
     // this will get messy in 2038.
     pinfo.server_timestamp = Some(
