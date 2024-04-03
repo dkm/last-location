@@ -4,7 +4,7 @@ pub mod schema;
 pub mod responders;
 
 
-use models::{NewInfo, UserLocationPoint};
+use models::{NewInfo, UserLocationPoint, UserInfo};
 use diesel::prelude::*;
 use rocket_sync_db_pools::{database, diesel};
 use responders::ApiError;
@@ -12,8 +12,28 @@ use responders::ApiError;
 #[database("sqlite_info")]
 pub struct Db(diesel::SqliteConnection);
 
+pub async fn get_user(db: &Db, user_id: i32) -> Option<UserInfo> {
+    use schema::users::dsl::*;
+
+    let user = db
+        .run(move |conn| {
+            users.filter(id.eq(user_id))
+                .limit(1)
+                .select(UserInfo::as_select())
+                .load(conn)
+        })
+        .await;
+
+    match user {
+        Ok(mut ui) => ui.pop(),
+        Err(_) => None,
+    }
+}
+
 pub async fn add_info(db: Db, new_info: NewInfo) -> Result<(), ApiError>{
     use schema::info;
+
+    get_user(&db, new_info.user_id).await.ok_or(ApiError::NotFound)?;
 
     let res = db.run({
         let info = new_info.clone();
