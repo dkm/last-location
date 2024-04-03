@@ -8,7 +8,7 @@
 - Yet another activity sharing ("strava")
 - Something anyone should rely on.
 - A battle tested software
-- A carefuly designed solution
+- A carefully designed solution
 ## TLDR
 - The user gives an easy and stable URL to one or more relatives
 - The user enables the tracking (e.g. on their phone) and go out
@@ -29,7 +29,7 @@
 - altitude: same;
 - speed/direction: is user moving or not?
 - accuracy: precision as reported by the device. Having to search around a clean GPS fix ~3m is not the same thing as searching within a 50m radius;
-- loc_provider: how was the location aquired (GSM, GPS, something else);
+- loc_provider: how was the location acquired (GSM, GPS, something else);
 - battery: in case of low battery, the device may change its reporting strategy and even suspend any tracking to save battery;
 # Roadmap
 - [ ] prototype a MVP: existing Android client connects to an instance, provides location
