@@ -2,6 +2,7 @@
 ## What it is
 - A testing ground for experimenting with Rust and some web-related crates (mainly [diesel](https://diesel.rs), [Rocket](https://rocket.rs))
 - A small and simple tool to keep track of the last position reported by a client (usually a smartphone, using [GPS Logger](https://gpslogger.app/)). My main use cases being flying using a paraglider or riding a MTB in nearby mountains.
+- Yet another software maintained by a single hobbyist with a [bus factor = 1](https://en.wikipedia.org/wiki/Bus_factor)
 ## What it is NOT
 - Yet another live tracking solution
 - Yet another activity sharing ("strava")
@@ -30,3 +31,10 @@
 - accuracy: precision as reported by the device. Having to search around a clean GPS fix ~3m is not the same thing as searching within a 50m radius;
 - loc_provider: how was the location aquired (GSM, GPS, something else);
 - battery: in case of low battery, the device may change its reporting strategy and even suspend any tracking to save battery;
+# Roadmap
+- [ ] prototype a MVP: existing Android client connects to an instance, provides location
+- [ ] write unit and integration tests
+- [ ] write documentation (including API)
+- [ ] fuzz the API
+# License
+All the software is distributed under the terms of the [GPLv3 or later](https://spdx.org/licenses/GPL-3.0-or-later.html)
