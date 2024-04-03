@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin=""/>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css" integrity="sha256-XoaMnoYC5TH6/+ihMEnospgm0J1PM/nioxbOUdnM8HY=" crossorigin="anonymous">
+
     <!-- Make sure you put this AFTER Leaflet's CSS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -21,7 +24,7 @@
   <ul id="infobox">
     <li>User: <span id="user_id"/> </li>
     <li>Measure uid: <span id="user_location_id"/> </li>
-    <li>Accuracy: <span id="user_accuracy" /> </li>
+    <li><i class="fa fa-wifi" aria-hidden="true"></i>: <span id="user_accuracy" /> </li>
     <li>Location source: <span id="user_provider" /> </li>
 
     <li>Latitude: <span id="user_latitude" /> </li>
@@ -29,9 +32,9 @@
     <li>Altitude: <span id="user_altitude" /> </li>
 
     <li>Speed: <span id="user_speed" /> </li>
-    <li>Heading: <span id="user_heading" /> </li>
+    <li><i class="fa fa-compass" aria-hidden="true"></i>: <span id="user_heading" /> </li>
 
-    <li>Battery: <span id="user_battery" /> </li>
+    <li><i class="fa fa-battery-three-quarters" aria-hidden="true"></i>: <span id="user_battery" /> </li>
 
     <li>Device Timestamp: <span id="user_device_timestamp" /> </li>
     <li>Server Timestamp: <span id="user_server_timestamp" /> </li>
@@ -43,6 +46,7 @@
 </p>
 
  <div id="map"></div>
+
 </body>
 
 <script>
