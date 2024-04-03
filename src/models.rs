@@ -1,4 +1,5 @@
 use crate::schema::{info, users};
+use std::fmt;
 
 use diesel::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
@@ -35,6 +36,12 @@ pub struct UserLocationPoint {
 
     pub loc_provider: Option<String>,
     pub battery: Option<f64>,
+}
+
+impl fmt::Display for UserLocationPoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(lat:{}, lon:{})", self.lat, self.lon)
+    }
 }
 
 #[derive(Insertable, FromForm, Clone)]

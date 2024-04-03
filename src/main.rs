@@ -8,12 +8,11 @@ use rocket::{Build, Rocket};
 use last_position::Db;
 use rocket::fs::{relative, FileServer};
 use std::time::{SystemTime, UNIX_EPOCH};
-//use dotenvy::dotenv;
-
+use last_position::responders::ApiError;
 use std::env;
 
 #[post("/info", data = "<newinfo>")]
-async fn info(db: Db, newinfo: Form<NewInfo>) {
+async fn info(db: Db, newinfo: Form<NewInfo>) -> Result<(), ApiError>{
     let mut pinfo: NewInfo = newinfo.clone();
     // this will get messy in 2038.
     pinfo.server_timestamp = Some(
@@ -23,23 +22,17 @@ async fn info(db: Db, newinfo: Form<NewInfo>) {
             .as_secs() as i32,
     );
 
-    last_position::add_info(db, pinfo).await;
+    last_position::add_info(db, pinfo).await
 }
 
 #[get("/<user_id>")]
-async fn index(db: Db, user_id: i32) -> Option<String> {
-    last_position::get_last_info(&db, user_id).await.map(|pos| {
-        format!(
-            "lat:{}, lon:{}, accuracy:{}",
-            pos.lat,
-            pos.lon,
-            (if let Some(acc) = pos.accuracy {
-                acc.to_string()
-            } else {
-                "None".to_string()
-            })
-        )
-    })
+async fn index(db: Db, user_id: i32) -> Result<String, ApiError> {
+    let lp = last_position::get_last_info(&db, user_id).await;
+
+    match lp {
+        Some(p) => Ok(format!("{}", p)),
+        None => Err(ApiError::NotFound),
+    }
 }
 
 async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
