@@ -61,7 +61,7 @@ fn rocket() -> _ {
         .attach(AdHoc::on_ignite("Diesel Migrations", run_migrations))
         // .manage(LastPilotInfo::new(db))
         .attach(last_position::json::stage())
-        .mount("/", FileServer::from(relative!("/static")))
+        .mount("/", FileServer::from("./static"))
         .mount("/api/", routes![index, info])
 }
 
