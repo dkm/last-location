@@ -2,11 +2,11 @@ use crate::schema::{info, users};
 use std::fmt;
 
 use diesel::prelude::*;
-use rocket::serde::{Deserialize, Serialize};
-use rocket::FromForm;
+// use rocket::serde::{Deserialize, Serialize};
+// use rocket::FromForm;
 
-#[derive(Queryable, Selectable, FromForm, Clone, Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
+#[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
+// #[serde(crate = "rocket::serde")]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserInfo {
@@ -14,8 +14,8 @@ pub struct UserInfo {
     pub name: Option<String>,
 }
 
-#[derive(Queryable, Selectable, FromForm, Clone, Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
+#[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
+//#[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserLocationPoint {
@@ -44,7 +44,7 @@ impl fmt::Display for UserLocationPoint {
     }
 }
 
-#[derive(Insertable, FromForm, Clone)]
+#[derive(Insertable, serde::Deserialize, Clone)]
 #[diesel(table_name = info)]
 pub struct NewInfo {
     pub user_id: i32,

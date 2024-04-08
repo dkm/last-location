@@ -1,28 +1,22 @@
-pub mod json;
 pub mod models;
 pub mod schema;
-pub mod responders;
 
+#[derive(Debug)]
+pub enum ApiError {
+    NotFound,
+}
 
 use models::{NewInfo, UserLocationPoint, UserInfo};
 use diesel::prelude::*;
-use rocket_sync_db_pools::{database, diesel};
-use responders::ApiError;
 
-#[database("sqlite_info")]
-pub struct Db(diesel::SqliteConnection);
-
-pub async fn get_user(db: &Db, user_id: i32) -> Option<UserInfo> {
+pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
     use schema::users::dsl::*;
 
-    let user = db
-        .run(move |conn| {
-            users.filter(id.eq(user_id))
+    let user =
+        users.filter(id.eq(user_id))
                 .limit(1)
                 .select(UserInfo::as_select())
-                .load(conn)
-        })
-        .await;
+                .load(db);
 
     match user {
         Ok(mut ui) => ui.pop(),
@@ -30,40 +24,32 @@ pub async fn get_user(db: &Db, user_id: i32) -> Option<UserInfo> {
     }
 }
 
-pub async fn add_info(db: Db, new_info: NewInfo) -> Result<(), ApiError>{
+pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<UserLocationPoint, ApiError>{
     use schema::info;
 
-    get_user(&db, new_info.user_id).await.ok_or(ApiError::NotFound)?;
+    get_user(db, new_info.user_id).ok_or(ApiError::NotFound)?;
 
-    let res = db.run({
-        let info = new_info.clone();
-        move |conn| {
+    let res =
             diesel::insert_into(info::table)
-                .values(&info)
+                .values(&new_info)
                 .returning(UserLocationPoint::as_returning())
-                .get_result(conn)
-        }
-    })
-    .await;
+                .get_result(db);
 
     match res {
-        Ok(_) => Ok(()),
+        Ok(ulp) => Ok(ulp),
         Err(_) => Err(ApiError::NotFound),
     }
 }
 
-pub async fn get_last_info(db: &Db, uid: i32) -> Option<UserLocationPoint> {
+pub fn get_last_info(db: &mut SqliteConnection, uid: i32) -> Option<UserLocationPoint> {
     use schema::info::dsl::*;
 
-    let last_pos = db
-        .run(move |conn| {
+    let last_pos =
             info.filter(user_id.eq(uid))
                 .limit(1)
                 .select(UserLocationPoint::as_select())
                 .order(id.desc())
-                .load(conn)
-        })
-        .await;
+                .load(db);
 
     match last_pos {
         Ok(found_pos) => {
