@@ -1,6 +1,7 @@
 # last-location
 ## What it is
-- A testing ground for experimenting with Rust and some web-related crates (mainly [diesel](https://diesel.rs), [Rocket](https://rocket.rs))
+- A testing ground for experimenting with Rust and some web-related crates (mainly [diesel](https://diesel.rs), [Rocket](https://rocket.rs) and [Axum](https://github.com/tokio-rs/axum/)).
+- Expect lot of code churn.
 - A small and simple tool to keep track of the last position reported by a client (usually a smartphone, using [GPS Logger](https://gpslogger.app/)). My main use cases being flying using a paraglider or riding a MTB in nearby mountains.
 - Yet another software maintained by a single hobbyist with a [bus factor = 1](https://en.wikipedia.org/wiki/Bus_factor)
 ## What it is NOT
