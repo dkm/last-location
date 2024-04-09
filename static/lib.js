@@ -17,10 +17,11 @@ function convert_from_epoch(epoch){
 
 
 function load_last_position(user_id, elt_id) {
-  fetch ("/api/json/" + user_id)
-    .then(response => {
+  fetch ("/api/get_last_location?" + new URLSearchParams({
+    uid: user_id,
+  })).then(response => {
       return response.json();
-    })
+  })
   .then(userInfo => {
     global_info = userInfo;
 
