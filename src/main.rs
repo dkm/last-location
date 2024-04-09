@@ -7,24 +7,28 @@ use axum::{
     Router,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
+use tower::ServiceExt;
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 
 use axum::extract::Query;
-use serde::{de, Deserialize};
+use serde::{de, Deserialize, Deserializer};
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use last_position::models::{NewInfo, UserLocationPoint};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
-
-use last_position::models::{NewInfo, UserLocationPoint};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "last_position=debug".into()),
+                .unwrap_or_else(|_| "last_position=trace,tower_http=debug,axum::rejection=trace".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -49,9 +53,10 @@ async fn main() {
     let app = Router::new()
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(pool);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -59,33 +64,7 @@ async fn main() {
         .unwrap();
 }
 
-async fn set_last_location(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    Form(new_info): Form<NewInfo>,
-) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
-    let mut pinfo: NewInfo = new_info.clone();
-
-    pinfo.server_timestamp = Some(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Can't get epoch")
-            .as_secs() as i32,
-    );
-
-    let conn = pool.get().await.map_err(internal_error)?;
-    let res = conn
-        .interact(|conn| {
-            last_position::add_info(conn, pinfo)
-        })
-        .await
-        .unwrap()
-        .unwrap();
-        // .map_err(internal_error)?
-        // .map_err(internal_error)?;
-    Ok(Json(res))
-}
-
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct GetLastLocParams {
     #[serde(default, deserialize_with = "empty_string_as_none")]
@@ -95,7 +74,7 @@ struct GetLastLocParams {
 /// Serde deserialization decorator to map empty Strings to None,
 fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
 {
@@ -116,13 +95,41 @@ async fn get_last_location(
 
     let uid = params.uid.unwrap();
     let res = conn
-        .interact(move |conn| {
-            last_position::get_last_info(conn, uid)
-        })
-        .await.unwrap();
-        // .map_err(internal_error)?
-        // .map_err(internal_error)?;
-    Ok(Json(res))
+        .interact(move |conn| last_position::get_last_info(conn, uid))
+        .await
+        .map_err(internal_error)?;
+
+    if res.is_some() {
+        Ok(Json(res))
+    } else {
+        Err((StatusCode::NOT_FOUND, "No match".to_string()))
+    }
+}
+
+async fn set_last_location(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    Form(new_info): Form<NewInfo>,
+) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
+    let mut pinfo: NewInfo = new_info.clone();
+
+    pinfo.server_timestamp = Some(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Can't get epoch")
+            .as_secs() as i32,
+    );
+
+    let conn = pool.get().await.map_err(internal_error)?;
+
+    let res = conn
+        .interact(|conn| last_position::add_info(conn, pinfo))
+        .await
+        .map_err(internal_error)?;
+
+    match res {
+        Err(_) => Err((StatusCode::NOT_FOUND, "No match".to_string())),
+        Ok(r) => Ok(Json(r)),
+    }
 }
 
 /// Utility function for mapping any error into a `500 Internal Server Error`
