@@ -1,0 +1,16 @@
+## CI for sr.ht
+
+image: debian/unstable
+arch: amd64
+packages:
+  - build-essential
+  - libsqlite3-dev
+tasks:
+  - setup: |
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -sSf | sh -s -- -y
+  - build: |
+      cd last-location
+      ./ci/build.sh
+  - test: |
+      cd last-location
+      ./ci/test.sh
