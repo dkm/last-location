@@ -35,6 +35,8 @@
 # Roadmap
 - [ ] prototype a MVP: existing Android client connects to an instance, provides location
 - [ ] write unit and integration tests
+- [ ] some CI 
+  - [![builds.sr.ht status](https://builds.sr.ht/~dkm.svg?search=last-location)](https://builds.sr.ht/~dkm?search=last-location)
 - [ ] write documentation (including API)
 - [ ] fuzz the API
 # License
