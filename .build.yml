@@ -11,6 +11,9 @@ tasks:
   - build: |
       cd last-location
       ./ci/build.sh
+  - build-doc: |
+      cd last-location
+      ./ci/build-doc.sh
   - test: |
       cd last-location
       ./ci/test.sh
