@@ -1,3 +1,4 @@
+use axum::extract::Query;
 use axum::Form;
 use axum::{
     extract::State,
@@ -6,33 +7,25 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-
-use axum::extract::Query;
-use serde::{de, Deserialize, Deserializer};
+use tracing::{event, span, Level};
 
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use last_position::models::{NewInfo, UserLocationPoint};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use last_position::models::{NewInfo, UserLocationPoint};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "last_position=trace,tower_http=debug,axum::rejection=trace".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+mod tests;
 
+async fn app() -> Router {
     let db_url = std::env::var("DATABASE_URL").unwrap();
 
     // set up connection pool
@@ -50,13 +43,27 @@ async fn main() {
             .unwrap();
     }
 
-    let app = Router::new()
+    Router::new()
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
-        .nest_service("/static", ServeDir::new("static"))
-        .with_state(pool);
+        .nest_service("/", ServeDir::new("static"))
+        .with_state(pool)
+}
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                "last_position=trace,tower_http=debug,axum::rejection=trace".into()
+            }),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    let app = app().await;
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -92,8 +99,8 @@ async fn get_last_location(
     State(pool): State<deadpool_diesel::sqlite::Pool>,
 ) -> Result<Json<Option<UserLocationPoint>>, (StatusCode, String)> {
     let conn = pool.get().await.map_err(internal_error)?;
-
     let uid = params.uid.unwrap();
+    event!(Level::TRACE, "Get {}", uid);
     let res = conn
         .interact(move |conn| last_position::get_last_info(conn, uid))
         .await
@@ -111,13 +118,13 @@ async fn set_last_location(
     Form(new_info): Form<NewInfo>,
 ) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
     let mut pinfo: NewInfo = new_info.clone();
-
     pinfo.server_timestamp = Some(
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Can't get epoch")
             .as_secs() as i32,
     );
+    event!(Level::TRACE, "Set {:?}", pinfo);
 
     let conn = pool.get().await.map_err(internal_error)?;
 

@@ -44,7 +44,7 @@ impl fmt::Display for UserLocationPoint {
     }
 }
 
-#[derive(Insertable, serde::Deserialize, Clone)]
+#[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = info)]
 pub struct NewInfo {
     pub user_id: i32,
