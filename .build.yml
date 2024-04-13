@@ -8,13 +8,16 @@ packages:
 tasks:
   - setup: |
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -sSf | sh -s -- -y
-      . "$HOME/.cargo/env"
+
   - build: |
+      . "$HOME/.cargo/env"
       cd last-location
       cargo build --verbose
   - build-doc: |
+      . "$HOME/.cargo/env"
       cd last-location
       cargo doc --verbose
   - test: |
+      . "$HOME/.cargo/env"
       cd last-location
       cargo test --verbose
