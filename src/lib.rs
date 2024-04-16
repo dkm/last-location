@@ -11,6 +11,25 @@ pub enum ApiError {
 use diesel::prelude::*;
 use models::{NewInfo, UserInfo, UserLocationPoint};
 
+use crate::models::NewUser;
+
+pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, ApiError> {
+    use schema::users;
+    let new_user = NewUser {
+        name: Some(String::from(name)),
+    };
+
+    let res = diesel::insert_into(users::table)
+        .values(&new_user)
+        .returning(UserInfo::as_returning())
+        .get_result(db);
+
+    match res {
+        Ok(nu) => Ok(nu),
+        Err(_) => Err(ApiError::NotFound),
+    }
+}
+
 pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
     use schema::users::dsl::*;
 

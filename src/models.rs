@@ -14,6 +14,12 @@ pub struct UserInfo {
     pub name: Option<String>,
 }
 
+#[derive(Insertable, serde::Deserialize, Clone, Debug)]
+#[diesel(table_name = users)]
+pub struct NewUser {
+    pub name: Option<String>,
+}
+
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
 //#[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
