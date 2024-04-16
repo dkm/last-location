@@ -7,33 +7,19 @@ use axum::{
     routing::{get, post},
     Router,
 };
+
 use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tower::ServiceExt;
-use tower_http::{
-    services::{ServeDir, ServeFile},
-    trace::TraceLayer,
-};
-use tracing::{event, span, Level};
+use tracing::{event, Level};
 
+use deadpool_diesel::sqlite::{Manager, Pool};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use last_position::models::{NewInfo, UserLocationPoint};
-use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
-mod tests;
-
-async fn app() -> Router {
-    let db_url = std::env::var("DATABASE_URL").unwrap();
-
-    // set up connection pool
-    let manager = deadpool_diesel::sqlite::Manager::new(db_url, deadpool_diesel::Runtime::Tokio1);
-    let pool = deadpool_diesel::sqlite::Pool::builder(manager)
-        .build()
-        .unwrap();
-
+async fn app(pool: Pool) -> Router {
     // run the migrations on server startup
     {
         let conn = pool.get().await.unwrap();
@@ -46,8 +32,9 @@ async fn app() -> Router {
     Router::new()
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
-        .nest_service("/", ServeDir::new("static"))
+        //        .nest_service("/", ServeDir::new("static"))
         .with_state(pool)
+    //        .layer(TraceLayer::new_for_http())
 }
 
 #[tokio::main]
@@ -61,14 +48,35 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let app = app().await;
+    let db_url = std::env::var("DATABASE_URL").unwrap();
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::debug!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    // set up connection pool
+    let manager = Manager::new(db_url, deadpool_diesel::Runtime::Tokio1);
+    let pool = deadpool_diesel::sqlite::Pool::builder(manager)
+        .build()
+        .unwrap();
+
+    let app = app(pool).await;
+
+    // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // tracing::debug!("listening on {}", addr);
+    // axum::Server::bind(&addr)
+    //     .serve(app.into_make_service())
+    //     .await
+    //     .unwrap();
+    // tracing_subscriber::registry()
+    // .with(
+    //     tracing_subscriber::EnvFilter::try_from_default_env()
+    //         .unwrap_or_else(|_| "last-position=debug,tower_http=debug".into()),
+    // )
+    // .with(tracing_subscriber::fmt::layer())
+    // .init();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
 }
 
 #[derive(Debug, Deserialize)]
