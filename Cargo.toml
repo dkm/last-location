@@ -5,24 +5,24 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-axum = { version = "0.6", features = ["macros"] }
-axum-macros = "0.4.1"
-chrono = { version = "0.4.26", features = ["serde"] }
-diesel = { version = "2.1.5", features = ["sqlite", "time", "uuid", "serde_json", "returning_clauses_for_sqlite_3_35"] }
-diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
+axum = { version = "0.7", features = ["macros"] }
+axum-macros = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+diesel = { version = "2.1", features = ["sqlite", "time", "uuid", "serde_json", "returning_clauses_for_sqlite_3_35"] }
+diesel_migrations = { version = "2.1", features = ["sqlite"] }
 
 dotenvy = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["sync", "macros", "rt-multi-thread"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.4", features = ["fast-rng", "v4", "serde"] }
 #rocket = { version = "0.5.0", features = ["json"] }
-time = { version = "0.3.34", features = ["serde"] }
-deadpool-diesel = { version = "0.6.0", features = ["sqlite"] }
-tower-http = { version = "0.4", features = ["fs", "trace"] }
-tower = { version = "0.4.13", features = ["util"] }
+time = { version = "0.3", features = ["serde"] }
+deadpool-diesel = { version = "0.6", features = ["sqlite"] }
+tower-http = { version = "0.5", features = ["fs", "trace"] }
+tower = { version = "0.4", features = ["util"] }
 
 # [dependencies.rocket_sync_db_pools]
 # version = "0.1.0"
