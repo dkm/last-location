@@ -2,6 +2,8 @@ pub mod models;
 pub mod schema;
 
 use serde::Serialize;
+use rand::prelude::*;
+use rand::distributions::Alphanumeric;
 
 #[derive(Debug, Serialize)]
 pub enum ApiError {
@@ -20,6 +22,38 @@ pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), ()> {
     // FIXME
     match db.run_pending_migrations(MIGRATIONS) {
         Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
+}
+
+pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -> Result<(), ()> {
+    use schema::users::dsl::*;
+
+    let r = diesel::update(users)
+        .filter(id.eq(user_id))
+        .set(unique_url.eq(uniq_url))
+        .execute(db);
+    match r {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
+}
+
+pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<String, ()> {
+    use schema::users::dsl::*;
+
+    let s: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect();
+
+    let r = diesel::update(users)
+        .filter(id.eq(user_id))
+        .set(priv_token.eq(&s))
+        .execute(db);
+    match r {
+        Ok(_) => Ok(s),
         Err(_) => Err(()),
     }
 }

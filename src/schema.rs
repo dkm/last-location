@@ -21,9 +21,14 @@ diesel::table! {
     users (id) {
         id -> Integer,
         name -> Nullable<Text>,
+        priv_token -> Nullable<Text>,
+        unique_url -> Nullable<Text>,
     }
 }
 
 diesel::joinable!(info -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(info, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    info,
+    users,
+);

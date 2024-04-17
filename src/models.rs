@@ -12,6 +12,8 @@ use diesel::prelude::*;
 pub struct UserInfo {
     pub id: i32,
     pub name: Option<String>,
+    pub priv_token: Option<String>,
+    pub unique_url: Option<String>,
 }
 
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]

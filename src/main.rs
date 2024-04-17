@@ -1,24 +1,25 @@
 #[cfg(test)]
 mod tests;
 
-use axum::extract::Query;
-use axum::Form;
 use axum::{
-    extract::State,
+    Form,
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
     Router,
 };
 
-use last_position::run_migrations;
+use last_position::{
+    models::{NewInfo, UserLocationPoint},
+    run_migrations};
+
 use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{event, Level};
 
 use deadpool_diesel::sqlite::{Manager, Pool};
 
-use last_position::models::{NewInfo, UserLocationPoint};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Placeholder struct to store app state.
