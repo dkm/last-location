@@ -12,6 +12,17 @@ use diesel::prelude::*;
 use models::{NewInfo, UserInfo, UserLocationPoint};
 
 use crate::models::NewUser;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
+
+pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), ()> {
+    // FIXME
+    match db.run_pending_migrations(MIGRATIONS) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
+}
 
 pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, ApiError> {
     use schema::users;

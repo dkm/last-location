@@ -11,33 +11,34 @@ use axum::{
     Router,
 };
 
+use last_position::run_migrations;
 use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{event, Level};
 
 use deadpool_diesel::sqlite::{Manager, Pool};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
 use last_position::models::{NewInfo, UserLocationPoint};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
+/// Placeholder struct to store app state.
+#[derive(Clone)]
+struct S {
+    pool: Pool,
+}
 
 async fn app(pool: Pool) -> Router {
-    // run the migrations on server startup
-    {
-        let conn = pool.get().await.unwrap();
-        conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
-            .await
-            .unwrap()
-            .unwrap();
-    }
+    let conn = pool.get().await.unwrap();
+    conn.interact(|conn| run_migrations(conn))
+        .await
+        .unwrap()
+        .unwrap();
 
     Router::new()
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
         //        .nest_service("/", ServeDir::new("static"))
-        .with_state(pool)
-    //        .layer(TraceLayer::new_for_http())
+        .with_state(S { pool })
 }
 
 #[tokio::main]
@@ -53,27 +54,12 @@ async fn main() {
 
     let db_url = std::env::var("DATABASE_URL").unwrap();
 
-    // set up connection pool
     let manager = Manager::new(db_url, deadpool_diesel::Runtime::Tokio1);
     let pool = deadpool_diesel::sqlite::Pool::builder(manager)
         .build()
-        .unwrap();
+        .expect("Can't create a pool for Sqlite db");
 
     let app = app(pool).await;
-
-    // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    // tracing::debug!("listening on {}", addr);
-    // axum::Server::bind(&addr)
-    //     .serve(app.into_make_service())
-    //     .await
-    //     .unwrap();
-    // tracing_subscriber::registry()
-    // .with(
-    //     tracing_subscriber::EnvFilter::try_from_default_env()
-    //         .unwrap_or_else(|_| "last-position=debug,tower_http=debug".into()),
-    // )
-    // .with(tracing_subscriber::fmt::layer())
-    // .init();
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -107,9 +93,9 @@ where
 
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    State(s): State<S>,
 ) -> Result<Json<Option<UserLocationPoint>>, (StatusCode, String)> {
-    let conn = pool.get().await.map_err(internal_error)?;
+    let conn = s.pool.get().await.map_err(internal_error)?;
     let uid = params.uid.unwrap();
     event!(Level::TRACE, "Get {}", uid);
     let res = conn
@@ -125,7 +111,7 @@ async fn get_last_location(
 }
 
 async fn set_last_location(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    State(s): State<S>,
     Form(new_info): Form<NewInfo>,
 ) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
     let mut pinfo: NewInfo = new_info.clone();
@@ -137,7 +123,7 @@ async fn set_last_location(
     );
     event!(Level::TRACE, "Set {:?}", pinfo);
 
-    let conn = pool.get().await.map_err(internal_error)?;
+    let conn = s.pool.get().await.map_err(internal_error)?;
 
     let res = conn
         .interact(|conn| last_position::add_info(conn, pinfo))
