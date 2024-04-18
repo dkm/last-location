@@ -39,6 +39,20 @@ pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -
     }
 }
 
+pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<UserInfo> {
+    use schema::users::dsl::*;
+
+    let user = users
+        .filter(unique_url.eq(uniq_url))
+        .select(UserInfo::as_select())
+        .load(db);
+
+    match user {
+        Ok(mut ui) => ui.pop(),
+        Err(_) => None,
+    }
+}
+
 pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<String, ()> {
     use schema::users::dsl::*;
 

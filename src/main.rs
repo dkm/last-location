@@ -74,6 +74,9 @@ async fn main() {
 struct GetLastLocParams {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     uid: Option<i32>,
+
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    url: Option<String>,
 }
 
 /// Serde deserialization decorator to map empty Strings to None,
@@ -97,7 +100,25 @@ async fn get_last_location(
     State(s): State<S>,
 ) -> Result<Json<Option<UserLocationPoint>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
-    let uid = params.uid.unwrap();
+
+    if params.uid.is_some() && params.url.is_some() || (params.uid.is_none() && params.url.is_none()){
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    }
+
+    let uid = if let Some(u) = params.uid {
+        u
+    } else {
+        let uinfo = conn
+            .interact(|conn| last_position::get_user_from_url(conn, &params.url.unwrap()))
+            .await
+            .unwrap();
+        if let Some(uinfo) = uinfo {
+            uinfo.id
+        } else {
+            return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+        }
+    };
+
     event!(Level::TRACE, "Get {}", uid);
     let res = conn
         .interact(move |conn| last_position::get_last_info(conn, uid))
