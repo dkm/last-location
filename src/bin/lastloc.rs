@@ -3,41 +3,38 @@ use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
-use last_position::{
-    generate_user_token,
-    create_user,
-    set_unique_url,
-    models::UserInfo
-};
+use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url};
 use std::env;
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    SqliteConnection::establish(db_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", db_url))
+    SqliteConnection::establish(db_url).unwrap_or_else(|_| panic!("Error connecting to {}", db_url))
 }
 
-fn do_gen_priv_token(db_url : &str, matches: &ArgMatches) {
+fn do_gen_priv_token(db_url: &str, matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
     generate_user_token(&mut db, 1).expect("Error generatng priv");
 }
 
-fn do_create_user(db_url : &str, matches: &ArgMatches) {
+fn do_create_user(db_url: &str, matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
     let name = matches.get_one::<String>("name").unwrap();
 
     create_user(&mut db, name).expect("Error creating user");
 }
 
-fn do_set_unique_url(db_url : &str, matches: &ArgMatches) {
+fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
     let url = matches.get_one::<String>("url").unwrap();
-    let user_id = matches.get_one::<String>("user-id").unwrap().parse::<i32>().expect("Not an i32");
+    let user_id = matches
+        .get_one::<String>("user-id")
+        .unwrap()
+        .parse::<i32>()
+        .expect("Not an i32");
     set_unique_url(&mut db, user_id, url).expect("Error setting url");
 }
 
-fn do_expire(db_url : &str, matches: &ArgMatches) {
-
+fn do_expire(db_url: &str, matches: &ArgMatches) {
     use last_position::schema::users::dsl::*;
 
     let limit_count = 40i32;
@@ -107,22 +104,13 @@ fn main() {
                 .default_value("info.sqlite"),
         )
         .subcommand(Command::new("expire"))
-        .subcommand(Command::new("create-user")
-            .arg(
-                Arg::new("name")
-                    .long("name")
-            ))
+        .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
         .subcommand(Command::new("gen-priv-token"))
-        .subcommand(Command::new("set-unique-url")
-                    .arg(
-                        Arg::new("url")
-                            .long("url")
-                    )
-                    .arg(
-                        Arg::new("user-id")
-                            .long("user-id")
-                    )
-)
+        .subcommand(
+            Command::new("set-unique-url")
+                .arg(Arg::new("url").long("url"))
+                .arg(Arg::new("user-id").long("user-id")),
+        )
         .get_matches();
 
     let sql_db = matches

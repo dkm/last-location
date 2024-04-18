@@ -1,9 +1,9 @@
 pub mod models;
 pub mod schema;
 
-use serde::Serialize;
-use rand::prelude::*;
 use rand::distributions::Alphanumeric;
+use rand::prelude::*;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub enum ApiError {

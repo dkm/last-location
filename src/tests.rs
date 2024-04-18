@@ -96,5 +96,4 @@ async fn simple_location_post_get() {
     assert_eq!(json_res.device_timestamp, 2);
     assert_eq!(json_res.lat, 66.0f64);
     assert_eq!(json_res.lon, 77.0f64);
-
 }

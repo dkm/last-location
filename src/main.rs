@@ -2,17 +2,17 @@
 mod tests;
 
 use axum::{
-    Form,
     extract::{Query, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
-    Router,
+    Form, Router,
 };
 
 use last_position::{
     models::{NewInfo, UserLocationPoint},
-    run_migrations};
+    run_migrations,
+};
 
 use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -101,7 +101,9 @@ async fn get_last_location(
 ) -> Result<Json<Option<UserLocationPoint>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
-    if params.uid.is_some() && params.url.is_some() || (params.uid.is_none() && params.url.is_none()){
+    if params.uid.is_some() && params.url.is_some()
+        || (params.uid.is_none() && params.url.is_none())
+    {
         return Err((StatusCode::NOT_FOUND, "No match".to_string()));
     }
 
