@@ -1,8 +1,8 @@
 CREATE TABLE users (
        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
        name VARCHAR (50),
-       priv_token VARCHAR (32),
-       unique_url VARCHAR (32)
+       priv_token VARCHAR (32) UNIQUE,
+       unique_url VARCHAR (32) UNIQUE
 );
 
 CREATE TABLE info (
