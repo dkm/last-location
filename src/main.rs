@@ -2,9 +2,10 @@
 mod tests;
 
 use axum::{
+    extract::Path,
     extract::{Query, State},
     http::StatusCode,
-    response::Json,
+    response::{Redirect, Json},
     routing::{get, post},
     Form, Router,
 };
@@ -36,6 +37,7 @@ async fn app(pool: Pool) -> Router {
         .unwrap();
 
     Router::new()
+        .route("/s/:uniq_url", get(get_stable_infopage))
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
         //        .nest_service("/", ServeDir::new("static"))
@@ -95,6 +97,13 @@ where
     }
 }
 
+async fn get_stable_infopage(
+    Path((uniq_url)): Path<String>,
+) -> Result<Redirect, (StatusCode, String)> {
+    event!(Level::TRACE, "stable {}", uniq_url);
+    Ok(Redirect::temporary(&format!("/?u={uniq_url}")))
+}
+
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
@@ -110,8 +119,10 @@ async fn get_last_location(
     let uid = if let Some(u) = params.uid {
         u
     } else {
+        let url = params.url.unwrap();
+
         let uinfo = conn
-            .interact(|conn| last_position::get_user_from_url(conn, &params.url.unwrap()))
+            .interact(move |conn| last_position::get_user_from_url(conn, &url))
             .await
             .unwrap();
         if let Some(uinfo) = uinfo {

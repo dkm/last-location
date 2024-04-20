@@ -15,10 +15,14 @@ function convert_from_epoch(epoch){
   return d;
 }
 
+function wrap_empty_string(s) {
+  if (!s) {return "Not available";}
+  else {return s};
+}
 
-function load_last_position(user_id, elt_id) {
+function load_last_position(uniq_url, elt_id) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
-    uid: user_id,
+    url: uniq_url,
   })).then(response => {
       return response.json();
   })
@@ -27,14 +31,15 @@ function load_last_position(user_id, elt_id) {
 
     document.getElementById('user_id').innerHTML = userInfo.user_id;
     document.getElementById('user_location_id').innerHTML = userInfo.id;
-    document.getElementById('user_accuracy').innerHTML = userInfo.accuracy;
-    document.getElementById('user_provider').innerHTML = userInfo.loc_provider;
     document.getElementById('user_latitude').innerHTML = userInfo.lat;
     document.getElementById('user_longitude').innerHTML = userInfo.lon;
-    document.getElementById('user_altitude').innerHTML = userInfo.altitude;
-    document.getElementById('user_speed').innerHTML = userInfo.speed;
-    document.getElementById('user_heading').innerHTML = userInfo.direction;
-    document.getElementById('user_battery').innerHTML = userInfo.battery;
+
+    document.getElementById('user_accuracy').innerHTML = wrap_empty_string(userInfo.accuracy);
+    document.getElementById('user_provider').innerHTML = wrap_empty_string(userInfo.loc_provider);
+    document.getElementById('user_altitude').innerHTML = wrap_empty_string(userInfo.altitude);
+    document.getElementById('user_speed').innerHTML = wrap_empty_string(userInfo.speed);
+    document.getElementById('user_heading').innerHTML = wrap_empty_string(userInfo.direction);
+    document.getElementById('user_battery').innerHTML = wrap_empty_string(userInfo.battery);
 
     document.getElementById('user_device_timestamp').innerHTML = convert_from_epoch(userInfo.device_timestamp);
     document.getElementById('user_server_timestamp').innerHTML = convert_from_epoch(userInfo.server_timestamp);
