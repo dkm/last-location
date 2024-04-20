@@ -12,9 +12,9 @@ use axum::{
 
 use diesel::SqliteConnection;
 use last_position::{
-    get_user_from_url,
-    get_user_from_token,
-    models::{NewInfo, UserLocationPoint}, run_migrations
+    get_user_from_token, get_user_from_url,
+    models::{NewInfo, UserLocationPoint},
+    run_migrations,
 };
 
 use tower_http::{
@@ -179,7 +179,7 @@ impl SetLastLocParams {
         let uinfo = get_user_from_token(db, &self.priv_token);
 
         match uinfo {
-            Some(uinfo) => Some(NewInfo{
+            Some(uinfo) => Some(NewInfo {
                 user_id: uinfo.id,
 
                 device_timestamp: self.device_timestamp,
@@ -194,7 +194,7 @@ impl SetLastLocParams {
                 battery: self.battery,
             }),
             None => None,
-         }
+        }
     }
 }
 

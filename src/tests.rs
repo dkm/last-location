@@ -1,12 +1,12 @@
 #[cfg(test)]
 use super::*;
 use ::axum_test::TestServer;
-use last_position::{create_user, get_user, run_migrations};
+use last_position::{create_user, generate_user_token, get_user, run_migrations, set_unique_url};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
-struct TestForm {
-    pub user_id: i32,
+struct TestForm<'a> {
+    pub priv_token: &'a str,
     pub device_timestamp: i32,
     pub lat: f64,
     pub lon: f64,
@@ -30,6 +30,14 @@ async fn simple_location_post_get() {
         .unwrap();
     assert!(res.is_ok());
 
+    let res = conn
+        .interact(|conn| generate_user_token(conn, 1i32))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let token = res.unwrap();
+
     let res = conn.interact(|conn| get_user(conn, 1i32)).await.unwrap();
     assert!(res.is_some());
 
@@ -51,7 +59,7 @@ async fn simple_location_post_get() {
     let response = server
         .post(&"/api/set_last_location")
         .form(&TestForm {
-            user_id: 1i32,
+            priv_token: &token,
             device_timestamp: 1i32,
             lat: 32.0f64,
             lon: 22.0f64,
@@ -76,7 +84,7 @@ async fn simple_location_post_get() {
     let response = server
         .post(&"/api/set_last_location")
         .form(&TestForm {
-            user_id: 1i32,
+            priv_token: &token,
             device_timestamp: 2i32,
             lat: 66.0f64,
             lon: 77.0f64,
@@ -87,6 +95,30 @@ async fn simple_location_post_get() {
     let response = server
         .get("/api/get_last_location")
         .add_query_param("uid", "1")
+        .await;
+    response.assert_status_ok();
+    let json_res = response.json::<UserLocationPoint>();
+
+    assert_eq!(json_res.user_id, 1);
+    assert_eq!(json_res.device_timestamp, 2);
+    assert_eq!(json_res.lat, 66.0f64);
+    assert_eq!(json_res.lon, 77.0f64);
+
+    let response = server
+        .get("/api/get_last_location")
+        .add_query_param("url", "something_something")
+        .await;
+    response.assert_status_not_found();
+
+    let res = conn
+        .interact(|conn| set_unique_url(conn, 1i32, "something_something"))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let response = server
+        .get("/api/get_last_location")
+        .add_query_param("url", "something_something")
         .await;
     response.assert_status_ok();
 
