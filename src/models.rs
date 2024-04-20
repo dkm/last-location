@@ -2,11 +2,8 @@ use crate::schema::{info, users};
 use std::fmt;
 
 use diesel::prelude::*;
-// use rocket::serde::{Deserialize, Serialize};
-// use rocket::FromForm;
 
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
-// #[serde(crate = "rocket::serde")]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserInfo {
@@ -23,7 +20,6 @@ pub struct NewUser {
 }
 
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
-//#[serde(crate = "rocket::serde")]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserLocationPoint {

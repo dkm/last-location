@@ -1,8 +1,0 @@
-
-## set only when compiled in debug mode, i.e, `cargo build`
-[debug]
-port = 8000
-address = "0.0.0.0"
-
-[default.databases]
-sqlite_info = { url = "info.sqlite" }
