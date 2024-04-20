@@ -1,3 +1,5 @@
+The main repository is [on sourcehut](https://git.sr.ht/~dkm/last-location). Github is only a mirror.
+
 # last-location
 ## What it is
 - A testing ground for experimenting with Rust and some web-related crates (mainly [diesel](https://diesel.rs), [Rocket](https://rocket.rs) and [Axum](https://github.com/tokio-rs/axum/)).
