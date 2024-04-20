@@ -13,7 +13,12 @@ pub fn establish_connection(db_url: &str) -> SqliteConnection {
 
 fn do_gen_priv_token(db_url: &str, matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
-    generate_user_token(&mut db, 1).expect("Error generatng priv");
+    let uid = matches
+        .get_one::<String>("user-id")
+        .unwrap()
+        .parse::<i32>()
+        .expect("Not an i32");
+    generate_user_token(&mut db, uid).expect("Error generating priv");
 }
 
 fn do_create_user(db_url: &str, matches: &ArgMatches) {
@@ -21,6 +26,11 @@ fn do_create_user(db_url: &str, matches: &ArgMatches) {
     let name = matches.get_one::<String>("name").unwrap();
 
     create_user(&mut db, name).expect("Error creating user");
+}
+
+fn do_list_users(db_url: &str, matches: &ArgMatches) {
+    let mut db = &mut establish_connection(db_url);
+    panic!("TODO");
 }
 
 fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
@@ -105,7 +115,8 @@ fn main() {
         )
         .subcommand(Command::new("expire"))
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
-        .subcommand(Command::new("gen-priv-token"))
+        .subcommand(Command::new("list-users"))
+        .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
         .subcommand(
             Command::new("set-unique-url")
                 .arg(Arg::new("url").long("url"))
@@ -122,6 +133,7 @@ fn main() {
         Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(&sql_db, sub_matches),
         Some(("set-unique-url", sub_matches)) => do_set_unique_url(&sql_db, sub_matches),
         Some(("create-user", sub_matches)) => do_create_user(&sql_db, sub_matches),
+        Some(("list-users", sub_matches)) => do_list_users(&sql_db, sub_matches),
         _ => println!("Wooops"),
     }
 }
