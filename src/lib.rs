@@ -46,7 +46,6 @@ pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<Us
         .filter(unique_url.eq(uniq_url))
         .select(UserInfo::as_select())
         .load(db);
-
     match user {
         Ok(mut ui) => ui.pop(),
         Err(_) => None,

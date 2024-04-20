@@ -98,7 +98,7 @@ where
 }
 
 async fn get_stable_infopage(
-    Path((uniq_url)): Path<String>,
+    Path(uniq_url): Path<String>,
 ) -> Result<Redirect, (StatusCode, String)> {
     event!(Level::TRACE, "stable {}", uniq_url);
     Ok(Redirect::temporary(&format!("/?u={uniq_url}")))
