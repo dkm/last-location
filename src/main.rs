@@ -5,14 +5,21 @@ use axum::{
     extract::Path,
     extract::{Query, State},
     http::StatusCode,
-    response::{Redirect, Json},
+    response::{Json, Redirect},
     routing::{get, post},
     Form, Router,
 };
 
+use diesel::SqliteConnection;
 use last_position::{
-    models::{NewInfo, UserLocationPoint},
-    run_migrations,
+    get_user_from_url,
+    get_user_from_token,
+    models::{NewInfo, UserLocationPoint}, run_migrations
+};
+
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
 };
 
 use serde::{de, Deserialize, Deserializer};
@@ -40,7 +47,7 @@ async fn app(pool: Pool) -> Router {
         .route("/s/:uniq_url", get(get_stable_infopage))
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
-        //        .nest_service("/", ServeDir::new("static"))
+        .nest_service("/", ServeDir::new("static"))
         .with_state(S { pool })
 }
 
@@ -145,11 +152,69 @@ async fn get_last_location(
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct SetLastLocParams {
+    // this is the only diff with NewInfo
+    pub priv_token: String,
+
+    pub device_timestamp: i32,
+    pub server_timestamp: Option<i32>,
+
+    pub lat: f64,
+    pub lon: f64,
+
+    pub altitude: Option<f64>,
+    pub speed: Option<f64>,
+    pub direction: Option<f64>,
+
+    pub accuracy: Option<f64>,
+
+    pub loc_provider: Option<String>,
+    pub battery: Option<f64>,
+}
+
+impl SetLastLocParams {
+    pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfo> {
+        let uinfo = get_user_from_token(db, &self.priv_token);
+
+        match uinfo {
+            Some(uinfo) => Some(NewInfo{
+                user_id: uinfo.id,
+
+                device_timestamp: self.device_timestamp,
+                server_timestamp: self.server_timestamp,
+                lat: self.lat,
+                lon: self.lon,
+                altitude: self.altitude,
+                speed: self.speed,
+                direction: self.direction,
+                accuracy: self.accuracy,
+                loc_provider: self.loc_provider.clone(),
+                battery: self.battery,
+            }),
+            None => None,
+         }
+    }
+}
+
 async fn set_last_location(
     State(s): State<S>,
-    Form(new_info): Form<NewInfo>,
+    Form(new_info): Form<SetLastLocParams>,
 ) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
-    let mut pinfo: NewInfo = new_info.clone();
+    let conn = s.pool.get().await.map_err(internal_error)?;
+
+    let pinfo = conn
+        .interact(move |conn| new_info.to_newinfo(conn))
+        .await
+        .map_err(internal_error)?;
+
+    if pinfo.is_none() {
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    }
+
+    let mut pinfo = pinfo.unwrap();
+
     pinfo.server_timestamp = Some(
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -157,8 +222,6 @@ async fn set_last_location(
             .as_secs() as i32,
     );
     event!(Level::TRACE, "Set {:?}", pinfo);
-
-    let conn = s.pool.get().await.map_err(internal_error)?;
 
     let res = conn
         .interact(|conn| last_position::add_info(conn, pinfo))
