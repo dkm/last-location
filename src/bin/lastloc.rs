@@ -3,6 +3,7 @@ use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
+use last_position::get_all_users;
 use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url};
 use std::env;
 
@@ -30,7 +31,13 @@ fn do_create_user(db_url: &str, matches: &ArgMatches) {
 
 fn do_list_users(db_url: &str, matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
-    panic!("TODO");
+    let all_users = get_all_users(&mut db);
+    match all_users {
+        None => println!("No users"),
+        Some(v) => for user in v {
+            println!("{}", user);
+        }
+    }
 }
 
 fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
@@ -45,16 +52,15 @@ fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
 }
 
 fn do_expire(db_url: &str, matches: &ArgMatches) {
-    use last_position::schema::users::dsl::*;
+    let limit_count = matches
+        .get_one::<String>("max-count")
+        .unwrap()
+        .parse::<i32>()
+        .expect("Not an i32");
 
-    let limit_count = 40i32;
+    let mut db = &mut establish_connection(db_url);
 
-    let db = &mut establish_connection(db_url);
-
-    let all_users = users
-        .select(UserInfo::as_select())
-        .load(db)
-        .expect("Error finding all users");
+    let all_users = get_all_users(&mut db).expect("failed to get users, FIXME error handling");
 
     for user in all_users {
         use last_position::schema::info::dsl::*;
@@ -113,7 +119,7 @@ fn main() {
                 .long("sqlite-db")
                 .default_value("info.sqlite"),
         )
-        .subcommand(Command::new("expire"))
+        .subcommand(Command::new("expire").arg(Arg::new("max-count").long("max-count")))
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
         .subcommand(Command::new("list-users"))
         .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))

@@ -12,7 +12,7 @@ use axum::{
 
 use diesel::SqliteConnection;
 use last_position::{
-    get_user_from_token, get_user_from_url,
+    get_user_from_token,
     models::{NewInfo, UserLocationPoint},
     run_migrations,
 };

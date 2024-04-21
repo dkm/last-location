@@ -39,6 +39,18 @@ pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -
     }
 }
 
+pub fn get_all_users(db: &mut SqliteConnection) -> Option<Vec<UserInfo>>{
+    use schema::users::dsl::*;
+
+    let user = users
+        .select(UserInfo::as_select())
+        .load(db);
+    match user {
+        Ok(ui) => Some(ui),
+        Err(_) => None,
+    }
+}
+
 pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<UserInfo> {
     use schema::users::dsl::*;
 

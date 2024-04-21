@@ -13,6 +13,18 @@ pub struct UserInfo {
     pub unique_url: Option<String>,
 }
 
+impl fmt::Display for UserInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id: {}, name: {}, priv_token: {}, unique_url: {}",
+               self.id,
+               // FIXME this is ugly.
+               self.name.clone().map_or("None".to_string(), |v| v.clone()),
+               self.priv_token.clone().map_or("None".to_string(), |v| v.clone()),
+               self.unique_url.clone().map_or("None".to_string(), |v| v.clone()),
+        )
+    }
+}
+
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = users)]
 pub struct NewUser {
