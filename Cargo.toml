@@ -24,10 +24,10 @@ deadpool-diesel = { version = "0.6", features = ["sqlite"] }
 tower-http = { version = "0.5", features = ["fs", "trace"] }
 tower = { version = "0.4", features = ["util"] }
 hyper = { version = "1.2", features = ["client"] }
-axum-test = "14.8.0"
+
 rand = "0.8.5"
 clap = "4.5.4"
 
-# [dependencies.rocket_sync_db_pools]
-# version = "0.1.0"
-# features = ["diesel_sqlite_pool"]
+[dev-dependencies]
+assert_cmd = "2.0.14"
+axum-test = "14.8.0"

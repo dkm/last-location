@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use last_position::get_all_users;
+use last_position::run_migrations;
 use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url};
 use std::env;
 
@@ -109,6 +110,12 @@ fn do_expire(db_url: &str, matches: &ArgMatches) {
     }
 }
 
+
+fn do_init(db_url: &str, matches: &ArgMatches){
+    let db = &mut establish_connection(db_url);
+    run_migrations(db).expect("Can't init/run migrations")
+}
+
 fn main() {
     let matches = Command::new("lastloc")
         .version("0.1")
@@ -119,6 +126,7 @@ fn main() {
                 .long("sqlite-db")
                 .default_value("info.sqlite"),
         )
+        .subcommand(Command::new("init"))
         .subcommand(Command::new("expire").arg(Arg::new("max-count").long("max-count")))
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
         .subcommand(Command::new("list-users"))
@@ -135,6 +143,7 @@ fn main() {
         .expect("can't be missing");
 
     match matches.subcommand() {
+        Some(("init", sub_matches)) => do_init(&sql_db, sub_matches),
         Some(("expire", sub_matches)) => do_expire(&sql_db, sub_matches),
         Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(&sql_db, sub_matches),
         Some(("set-unique-url", sub_matches)) => do_set_unique_url(&sql_db, sub_matches),
