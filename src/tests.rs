@@ -3,6 +3,7 @@ use super::*;
 use ::axum_test::TestServer;
 use last_position::{create_user, generate_user_token, get_user, run_migrations, set_unique_url};
 use serde::{Deserialize, Serialize};
+use std::{fs, path::Path};
 
 #[derive(Deserialize, Serialize)]
 struct TestForm<'a> {
@@ -15,6 +16,10 @@ struct TestForm<'a> {
 #[tokio::test]
 async fn simple_location_post_get() {
     let db_url = "simple_location_post_get.sqlite";
+    if Path::new(&db_url).try_exists().unwrap(){
+        fs::remove_file(&db_url).unwrap();
+    }
+
     let manager = Manager::new(db_url, deadpool_diesel::Runtime::Tokio1);
     let pool = deadpool_diesel::sqlite::Pool::builder(manager)
         .build()
