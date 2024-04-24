@@ -35,11 +35,11 @@ The main repository is [on sourcehut](https://git.sr.ht/~dkm/last-location). Git
 - loc_provider: how was the location acquired (GSM, GPS, something else);
 - battery: in case of low battery, the device may change its reporting strategy and even suspend any tracking to save battery;
 # Roadmap
-- [ ] prototype a MVP: existing Android client connects to an instance, provides location
-- [ ] write unit and integration tests
-- [ ] some CI 
+- prototype a MVP: existing Android client connects to an instance, provides location
+- write unit and integration tests
+- some CI 
   - [![builds.sr.ht status](https://builds.sr.ht/~dkm.svg?search=last-location)](https://builds.sr.ht/~dkm?search=last-location)
-- [ ] write documentation (including API)
-- [ ] fuzz the API
+- write documentation (including API)
+- fuzz the API
 # License
 All the software is distributed under the terms of the [GPLv3 or later](https://spdx.org/licenses/GPL-3.0-or-later.html)
