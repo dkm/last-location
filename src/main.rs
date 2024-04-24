@@ -78,15 +78,6 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct GetLastLocParams {
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    uid: Option<i32>,
-
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    url: Option<String>,
-}
 
 /// Serde deserialization decorator to map empty Strings to None,
 fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
@@ -111,10 +102,22 @@ async fn get_stable_infopage(
     Ok(Redirect::temporary(&format!("/?u={uniq_url}")))
 }
 
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct GetLastLocParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    uid: Option<i32>,
+
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    url: Option<String>,
+
+    count: Option<i64>,
+}
+
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
-) -> Result<Json<Option<UserLocationPoint>>, (StatusCode, String)> {
+) -> Result<Json<Vec<UserLocationPoint>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     if params.uid.is_some() && params.url.is_some()
@@ -139,14 +142,19 @@ async fn get_last_location(
         }
     };
 
+    let count = match params.count {
+        Some(c) => c,
+        None => 1,
+    };
+
     event!(Level::TRACE, "Get {}", uid);
     let res = conn
-        .interact(move |conn| last_position::get_last_info(conn, uid))
+        .interact(move |conn| last_position::get_last_info(conn, uid, count))
         .await
         .map_err(internal_error)?;
 
     if res.is_some() {
-        Ok(Json(res))
+        Ok(Json(res.unwrap()))
     } else {
         Err((StatusCode::NOT_FOUND, "No match".to_string()))
     }

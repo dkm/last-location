@@ -147,12 +147,12 @@ pub fn add_info(
     }
 }
 
-pub fn get_last_info(db: &mut SqliteConnection, uid: i32) -> Option<UserLocationPoint> {
+pub fn get_last_info(db: &mut SqliteConnection, uid: i32, count: i64) -> Option<Vec<UserLocationPoint>> {
     use schema::info::dsl::*;
 
     let last_pos = info
         .filter(user_id.eq(uid))
-        .limit(1)
+        .limit(count)
         .select(UserLocationPoint::as_select())
         .order(id.desc())
         .load(db);
@@ -160,7 +160,7 @@ pub fn get_last_info(db: &mut SqliteConnection, uid: i32) -> Option<UserLocation
     match last_pos {
         Ok(found_pos) => {
             if !found_pos.is_empty() {
-                Some(found_pos[0].clone())
+                Some(found_pos)
             } else {
                 None
             }

@@ -78,12 +78,12 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<UserLocationPoint>();
-
-    assert_eq!(json_res.user_id, 1);
-    assert_eq!(json_res.device_timestamp, 1);
-    assert_eq!(json_res.lat, 32.0f64);
-    assert_eq!(json_res.lon, 22.0f64);
+    let json_res = response.json::<Vec<UserLocationPoint>>();
+    assert_eq!(json_res.len(), 1);
+    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].device_timestamp, 1);
+    assert_eq!(json_res[0].lat, 32.0f64);
+    assert_eq!(json_res[0].lon, 22.0f64);
 
     // get set latest data
     let response = server
@@ -102,12 +102,13 @@ async fn simple_location_post_get() {
         .add_query_param("uid", "1")
         .await;
     response.assert_status_ok();
-    let json_res = response.json::<UserLocationPoint>();
+    let json_res = response.json::<Vec<UserLocationPoint>>();
 
-    assert_eq!(json_res.user_id, 1);
-    assert_eq!(json_res.device_timestamp, 2);
-    assert_eq!(json_res.lat, 66.0f64);
-    assert_eq!(json_res.lon, 77.0f64);
+    assert_eq!(json_res.len(), 1);
+    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].device_timestamp, 2);
+    assert_eq!(json_res[0].lat, 66.0f64);
+    assert_eq!(json_res[0].lon, 77.0f64);
 
     let response = server
         .get("/api/get_last_location")
@@ -127,10 +128,53 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<UserLocationPoint>();
+    let json_res = response.json::<Vec<UserLocationPoint>>();
 
-    assert_eq!(json_res.user_id, 1);
-    assert_eq!(json_res.device_timestamp, 2);
-    assert_eq!(json_res.lat, 66.0f64);
-    assert_eq!(json_res.lon, 77.0f64);
+    assert_eq!(json_res.len(), 1);
+    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].device_timestamp, 2);
+    assert_eq!(json_res[0].lat, 66.0f64);
+    assert_eq!(json_res[0].lon, 77.0f64);
+
+
+    let res = conn
+        .interact(|conn| set_unique_url(conn, 1i32, "something_something"))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    // get set latest data
+    let response = server
+        .post(&"/api/set_last_location")
+        .form(&TestForm {
+            priv_token: &token,
+            device_timestamp: 3i32,
+            lat: 88.0f64,
+            lon: 99.0f64,
+        })
+        .await;
+    response.assert_status_ok();
+    // get set latest data
+    let response = server
+        .post(&"/api/set_last_location")
+        .form(&TestForm {
+            priv_token: &token,
+            device_timestamp: 4i32,
+            lat: 11.0f64,
+            lon: 22.0f64,
+        })
+        .await;
+    response.assert_status_ok();
+
+
+    let response = server
+        .get("/api/get_last_location")
+        .add_query_param("url", "something_something")
+        .add_query_param("count", "10")
+        .await;
+    response.assert_status_ok();
+
+    let json_res = response.json::<Vec<UserLocationPoint>>();
+
+    assert_eq!(json_res.len(), 4);
 }

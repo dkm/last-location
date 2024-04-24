@@ -23,11 +23,13 @@ function wrap_empty_string(s) {
 function load_last_position(uniq_url, elt_id) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
     url: uniq_url,
+    count: 10,
   })).then(response => {
       return response.json();
   })
-  .then(userInfo => {
-    global_info = userInfo;
+  .then(allUserInfo => {
+    let userInfo = allUserInfo[0];
+    let prevInfo = allUserInfo.slice(1);
 
     document.getElementById('user_id').innerHTML = userInfo.user_id;
     document.getElementById('user_location_id').innerHTML = userInfo.id;
@@ -45,13 +47,32 @@ function load_last_position(uniq_url, elt_id) {
     document.getElementById('user_server_timestamp').innerHTML = convert_from_epoch(userInfo.server_timestamp);
 
     let a = document.getElementById('osm_link');
-    a.href="https://www.openstreetmap.org/?mlat=" + global_info.lat + "&mlon=" + global_info.lon;
+    a.href="https://www.openstreetmap.org/?mlat=" + userInfo.lat + "&mlon=" + userInfo.lon;
 
     var map = L.map('map').setView([userInfo.lat, userInfo.lon], 13);
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
+
+    if (userInfo.accuracy){
+       L.circle([userInfo.lat, userInfo.lon], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+         radius: userInfo.accuracy,
+      }).addTo(map);
+    }
+
+    if (prevInfo) {
+      let prevPoints = allUserInfo.map((ui) => [ui.lat, ui.lon]);
+
+      var polyline = L.polyline(prevPoints, {
+        color: 'red',
+        opacity: 0.5,
+      }).addTo(map);
+    }
+
 
     L.marker([userInfo.lat, userInfo.lon]).addTo(map)
      .bindPopup('Last position:<br>' + convert_from_epoch(userInfo.device_timestamp))
