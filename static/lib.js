@@ -20,6 +20,43 @@ function wrap_empty_string(s) {
   else {return s};
 }
 
+function create_new_user(name, url) {
+  const data = {
+    req_url: url,
+    name: name,
+  };
+  const searchParams = new URLSearchParams(data);
+
+  console.debug(name, url);
+  console.debug(data);
+  fetch ("/api/new", {
+    method: "POST",
+    mode: "cors",
+    cache: "no-cache",
+    body: searchParams,
+  }).then(response => {
+    return response.json();
+  })
+    .then(userInfo => {
+      document.getElementById('user_id').innerHTML = userInfo.id;
+      document.getElementById('user_name').innerHTML = userInfo.name;
+      document.getElementById('user_priv_token').innerHTML = userInfo.priv_token;
+      document.getElementById('user_unique_url').innerHTML =  userInfo.unique_url;
+
+      document.getElementById('gpslogger').innerHTML = 'lat=%LAT&' +
+        'lon=%LON&' +
+        'accuracy=%ACC&' +
+        'priv_token=' + userInfo.priv_token + '&' +
+        'speed=%SPD&' +
+        'direction=%DIR&' +
+        'loc_provider=%PROV&' +
+        'device_timestamp=%TIMESTAMP&' +
+        'battery=%BATT&' +
+        'altitude=%ALT';
+      document.getElementById('gpslogger').style.display = "block";
+    });
+}
+
 function load_last_position(uniq_url, elt_id) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
     url: uniq_url,

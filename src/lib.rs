@@ -64,6 +64,19 @@ pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<Us
     }
 }
 
+pub fn get_user_from_id(db: &mut SqliteConnection, uid: i32) -> Option<UserInfo> {
+    use schema::users::dsl::*;
+
+    let user = users
+        .filter(id.eq(uid))
+        .select(UserInfo::as_select())
+        .load(db);
+    match user {
+        Ok(mut ui) => ui.pop(),
+        Err(_) => None,
+    }
+}
+
 pub fn get_user_from_token(db: &mut SqliteConnection, token: &str) -> Option<UserInfo> {
     use schema::users::dsl::*;
 

@@ -13,7 +13,7 @@ use axum::{
 use diesel::SqliteConnection;
 use last_position::{
     get_user_from_token,
-    models::{NewInfo, UserLocationPoint},
+    models::{NewInfo, UserLocationPoint, UserInfo},
     run_migrations,
 };
 
@@ -45,6 +45,7 @@ async fn app(pool: Pool) -> Router {
 
     Router::new()
         .route("/s/:uniq_url", get(get_stable_infopage))
+        .route("/api/new", post(create_new_user))
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
         .nest_service("/", ServeDir::new("static"))
@@ -100,6 +101,58 @@ async fn get_stable_infopage(
 ) -> Result<Redirect, (StatusCode, String)> {
     event!(Level::TRACE, "stable {}", uniq_url);
     Ok(Redirect::temporary(&format!("/?u={uniq_url}")))
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct CreateNewUserParams {
+    #[serde(default)]
+    req_url: String,
+
+    #[serde(default)]
+    name: String,
+}
+
+async fn create_new_user(
+    State(s): State<S>,
+    Form(params): Form<CreateNewUserParams>,
+) -> Result<Json<UserInfo>, (StatusCode, String)> {
+    event!(Level::TRACE, "create_new_user {} {} ", params.req_url, params.name);
+    let conn = s.pool.get().await.map_err(internal_error)?;
+
+    // Oh, this is ugly O_o
+
+    let uinfo = conn
+        .interact(move |conn| last_position::create_user(conn, &params.name))
+        .await
+        .unwrap();
+    if let Ok(uinfo) = uinfo {
+        event!(Level::TRACE, " got a user {} ", uinfo);
+        let res = conn
+            .interact(move |conn| last_position::set_unique_url(conn, uinfo.id, &params.req_url))
+            .await
+            .unwrap();
+        event!(Level::TRACE, " set unique  {} ", res.is_ok());
+
+        let res = conn
+            .interact(move |conn| last_position::generate_user_token(conn, uinfo.id))
+            .await
+            .unwrap();
+        event!(Level::TRACE, " generated a token {} ", res.is_ok());
+
+        if res.is_ok() {
+            let r = conn
+                .interact(move |conn| last_position::get_user_from_id(conn, uinfo.id))
+                .await
+                .unwrap().unwrap();
+
+            event!(Level::TRACE, " get user again  {} ", r);
+            return Ok(Json(r));
+        }
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    } else {
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    }
 }
 
 #[derive(Debug, Deserialize)]
