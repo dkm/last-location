@@ -5,7 +5,7 @@ use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use last_position::get_all_users;
 use last_position::run_migrations;
-use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url};
+use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url, delete_user};
 use std::env;
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
@@ -28,6 +28,17 @@ fn do_create_user(db_url: &str, matches: &ArgMatches) {
     let name = matches.get_one::<String>("name").unwrap();
 
     create_user(&mut db, name).expect("Error creating user");
+}
+
+fn do_delete_user(db_url: &str, matches: &ArgMatches) {
+    let mut db = &mut establish_connection(db_url);
+    let uid = matches
+        .get_one::<String>("user-id")
+        .unwrap()
+        .parse::<i32>()
+        .expect("Not an i32");
+
+    delete_user(&mut db, uid).expect("Error deleting user");
 }
 
 fn do_list_users(db_url: &str, matches: &ArgMatches) {
@@ -129,6 +140,7 @@ fn main() {
         .subcommand(Command::new("init"))
         .subcommand(Command::new("expire").arg(Arg::new("max-count").long("max-count")))
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
+        .subcommand(Command::new("delete-user").arg(Arg::new("user-id").long("user-id")))
         .subcommand(Command::new("list-users"))
         .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
         .subcommand(
@@ -148,6 +160,7 @@ fn main() {
         Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(&sql_db, sub_matches),
         Some(("set-unique-url", sub_matches)) => do_set_unique_url(&sql_db, sub_matches),
         Some(("create-user", sub_matches)) => do_create_user(&sql_db, sub_matches),
+        Some(("delete-user", sub_matches)) => do_delete_user(&sql_db, sub_matches),
         Some(("list-users", sub_matches)) => do_list_users(&sql_db, sub_matches),
         _ => println!("Wooops"),
     }

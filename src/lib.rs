@@ -128,6 +128,17 @@ pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, Er
     }
 }
 
+pub fn delete_user(db: &mut SqliteConnection, user_id: i32) -> Result<(), Error> {
+    use schema::users;
+    use schema::users::dsl::*;
+
+    let res = diesel::delete(users::table)
+        .filter(id.eq(user_id))
+        .execute(db);
+
+    match res {
+        Ok(c) => if c == 1 {Ok(())} else {Err(Error::Undefined)},
+        Err(_) => Err(Error::Undefined),
     }
 }
 

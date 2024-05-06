@@ -52,5 +52,4 @@ fn list_users() {
     cmd.assert()
         .stdout("id: 1, name: boby, priv_token: None, unique_url: None\n")
        .success();
-
 }

@@ -1,7 +1,7 @@
 #[cfg(test)]
 use super::*;
 use ::axum_test::TestServer;
-use last_position::{create_user, generate_user_token, get_user, run_migrations, set_unique_url};
+use last_position::{create_user, generate_user_token, get_user, run_migrations, set_unique_url, delete_user};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -177,4 +177,64 @@ async fn simple_location_post_get() {
     let json_res = response.json::<Vec<UserLocationPoint>>();
 
     assert_eq!(json_res.len(), 4);
+}
+
+#[tokio::test]
+async fn delete_user_test() {
+    let db_url = "delete_user.sqlite";
+    if Path::new(&db_url).try_exists().unwrap(){
+        fs::remove_file(&db_url).unwrap();
+    }
+
+    let manager = Manager::new(db_url, deadpool_diesel::Runtime::Tokio1);
+    let pool = deadpool_diesel::sqlite::Pool::builder(manager)
+        .build()
+        .unwrap();
+
+    let conn = pool.get().await.unwrap();
+    let res = conn.interact(|conn| run_migrations(conn)).await;
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| create_user(conn, "sample_user"))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| create_user(conn, "sample_user2"))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| delete_user(conn, 1))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| delete_user(conn, 1))
+        .await
+        .unwrap();
+    assert!(res.is_err());
+
+    let res = conn
+        .interact(|conn| delete_user(conn, 3))
+        .await
+        .unwrap();
+    assert!(res.is_err());
+
+    let res = conn
+        .interact(|conn| delete_user(conn, 2))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| delete_user(conn, 2))
+        .await
+        .unwrap();
+    assert!(res.is_err());
+
 }
