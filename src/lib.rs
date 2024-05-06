@@ -5,9 +5,11 @@ use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use serde::Serialize;
 
+
 #[derive(Debug, Serialize)]
-pub enum ApiError {
+pub enum Error {
     NotFound,
+    Undefined,
 }
 
 use diesel::prelude::*;
@@ -18,15 +20,15 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
-pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), ()> {
+pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), Error> {
     // FIXME
     match db.run_pending_migrations(MIGRATIONS) {
         Ok(_) => Ok(()),
-        Err(_) => Err(()),
+        Err(_) => Err(Error::Undefined),
     }
 }
 
-pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -> Result<(), ()> {
+pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -> Result<(), Error> {
     use schema::users::dsl::*;
 
     let r = diesel::update(users)
@@ -35,7 +37,7 @@ pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -
         .execute(db);
     match r {
         Ok(_) => Ok(()),
-        Err(_) => Err(()),
+        Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -90,7 +92,7 @@ pub fn get_user_from_token(db: &mut SqliteConnection, token: &str) -> Option<Use
     }
 }
 
-pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<String, ()> {
+pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<String, Error> {
     use schema::users::dsl::*;
 
     let s: String = thread_rng()
@@ -105,11 +107,11 @@ pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<St
         .execute(db);
     match r {
         Ok(_) => Ok(s),
-        Err(_) => Err(()),
+        Err(_) => Err(Error::Undefined),
     }
 }
 
-pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, ApiError> {
+pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, Error> {
     use schema::users;
     let new_user = NewUser {
         name: Some(String::from(name)),
@@ -122,7 +124,10 @@ pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, Ap
 
     match res {
         Ok(nu) => Ok(nu),
-        Err(_) => Err(ApiError::NotFound),
+        Err(_) => Err(Error::Undefined),
+    }
+}
+
     }
 }
 
@@ -144,10 +149,10 @@ pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
 pub fn add_info(
     db: &mut SqliteConnection,
     new_info: NewInfo,
-) -> Result<UserLocationPoint, ApiError> {
+) -> Result<UserLocationPoint, Error> {
     use schema::info;
 
-    get_user(db, new_info.user_id).ok_or(ApiError::NotFound)?;
+    get_user(db, new_info.user_id).ok_or(Error::NotFound)?;
 
     let res = diesel::insert_into(info::table)
         .values(&new_info)
@@ -156,7 +161,7 @@ pub fn add_info(
 
     match res {
         Ok(ulp) => Ok(ulp),
-        Err(_) => Err(ApiError::NotFound),
+        Err(_) => Err(Error::Undefined),
     }
 }
 
