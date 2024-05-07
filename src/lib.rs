@@ -12,7 +12,7 @@ pub enum Error {
     Undefined,
 }
 
-use diesel::prelude::*;
+use diesel::{prelude::*, sql_query};
 use models::{NewInfo, UserInfo, UserLocationPoint};
 
 use crate::models::NewUser;

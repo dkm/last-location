@@ -41,7 +41,7 @@ fn do_delete_user(db_url: &str, matches: &ArgMatches) {
     delete_user(&mut db, uid).expect("Error deleting user");
 }
 
-fn do_list_users(db_url: &str, matches: &ArgMatches) {
+fn do_list_users(db_url: &str, _matches: &ArgMatches) {
     let mut db = &mut establish_connection(db_url);
     let all_users = get_all_users(&mut db);
     match all_users {
@@ -122,7 +122,7 @@ fn do_expire(db_url: &str, matches: &ArgMatches) {
 }
 
 
-fn do_init(db_url: &str, matches: &ArgMatches){
+fn do_init(db_url: &str, _matches: &ArgMatches){
     let db = &mut establish_connection(db_url);
     run_migrations(db).expect("Can't init/run migrations")
 }

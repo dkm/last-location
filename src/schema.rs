@@ -2,8 +2,8 @@
 
 diesel::table! {
     info (id) {
-        user_id -> Integer,
         id -> Integer,
+        user_id -> Integer,
         device_timestamp -> Integer,
         server_timestamp -> Integer,
         lat -> Double,
@@ -28,4 +28,7 @@ diesel::table! {
 
 diesel::joinable!(info -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(info, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    info,
+    users,
+);
