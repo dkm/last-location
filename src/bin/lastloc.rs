@@ -1,12 +1,12 @@
-use clap::{Arg, ArgGroup, ArgMatches, Command};
+use clap::{Arg, ArgMatches, Command};
 use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use dotenvy::dotenv;
+
 use last_position::get_all_users;
 use last_position::run_migrations;
-use last_position::{create_user, generate_user_token, models::UserInfo, set_unique_url, delete_user};
-use std::env;
+use last_position::{create_user, generate_user_token, set_unique_url, delete_user, init};
+
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -153,6 +153,9 @@ fn main() {
     let sql_db = matches
         .get_one::<String>("sqlite-db")
         .expect("can't be missing");
+
+    let db = &mut establish_connection(sql_db);
+    init(db).unwrap();
 
     match matches.subcommand() {
         Some(("init", sub_matches)) => do_init(&sql_db, sub_matches),

@@ -15,6 +15,7 @@ use last_position::{
     get_user_from_token,
     models::{NewInfo, UserLocationPoint, UserInfo},
     run_migrations,
+    init,
 };
 
 use tower_http::{
@@ -37,6 +38,12 @@ struct S {
 }
 
 async fn app(pool: Pool) -> Router {
+    let conn = pool.get().await.unwrap();
+    conn.interact(|conn| init(conn))
+        .await
+        .unwrap()
+        .unwrap();
+
     let conn = pool.get().await.unwrap();
     conn.interact(|conn| run_migrations(conn))
         .await

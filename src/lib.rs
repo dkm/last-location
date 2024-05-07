@@ -20,6 +20,13 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
+pub fn init(db: &mut SqliteConnection) -> Result<(), Error> {
+    match sql_query("PRAGMA foreign_keys = ON").execute(db){
+        Ok(_) => Ok(()),
+        Err(_) => Err(Error::Undefined),
+    }
+}
+
 pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), Error> {
     // FIXME
     match db.run_pending_migrations(MIGRATIONS) {
