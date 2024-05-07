@@ -112,8 +112,9 @@ pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<St
         .filter(id.eq(user_id))
         .set(priv_token.eq(&s))
         .execute(db);
+
     match r {
-        Ok(_) => Ok(s),
+        Ok(c) => if c == 1 {Ok(s)} else {Err(Error::Undefined)},
         Err(_) => Err(Error::Undefined),
     }
 }
