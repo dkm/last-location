@@ -57,7 +57,7 @@ function create_new_user(name, url) {
     });
 }
 
-function load_last_position(uniq_url, elt_id) {
+function load_last_position(uniq_url) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
     url: uniq_url,
     count: 10,
@@ -101,6 +101,8 @@ function load_last_position(uniq_url, elt_id) {
       }).addTo(map);
     }
 
+    let detailed_coords_ol = document.getElementById('detailed-coords');
+
     if (prevInfo) {
       let prevPoints = allUserInfo.map((ui) => [ui.lat, ui.lon]);
 
@@ -108,8 +110,12 @@ function load_last_position(uniq_url, elt_id) {
         color: 'red',
         opacity: 0.5,
       }).addTo(map);
-    }
 
+      for (p in allUserInfo) {
+        let pdate = new Date(allUserInfo[p].device_timestamp).toTimeString();
+        detailed_coords_ol.innerHTML = detailed_coords_ol.innerHTML + `<li>${allUserInfo[p].lat} ${allUserInfo[p].lon} -- ${pdate}</li>`
+      }
+    }
 
     L.marker([userInfo.lat, userInfo.lon]).addTo(map)
      .bindPopup('Last position:<br>' + convert_from_epoch(userInfo.device_timestamp))
