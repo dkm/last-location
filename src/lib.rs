@@ -9,6 +9,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 pub enum Error {
     NotFound,
+    UserNotFound,
     Undefined,
 }
 
@@ -43,8 +44,9 @@ pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -
         .set(unique_url.eq(uniq_url))
         .execute(db);
     match r {
-        Ok(_) => Ok(()),
-        Err(_) => Err(Error::Undefined),
+        Ok(1) => Ok(()),
+        Ok(0) => Err(Error::UserNotFound),
+        Ok(_)|Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -68,7 +70,7 @@ pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<Us
         .select(UserInfo::as_select())
         .load(db);
     match user {
-        Ok(mut ui) => ui.pop(),
+        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
         Err(_) => None,
     }
 }
@@ -81,7 +83,7 @@ pub fn get_user_from_id(db: &mut SqliteConnection, uid: i32) -> Option<UserInfo>
         .select(UserInfo::as_select())
         .load(db);
     match user {
-        Ok(mut ui) => ui.pop(),
+        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
         Err(_) => None,
     }
 }
@@ -94,7 +96,7 @@ pub fn get_user_from_token(db: &mut SqliteConnection, token: &str) -> Option<Use
         .select(UserInfo::as_select())
         .load(db);
     match user {
-        Ok(mut ui) => ui.pop(),
+        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
         Err(_) => None,
     }
 }
@@ -114,8 +116,9 @@ pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<St
         .execute(db);
 
     match r {
-        Ok(c) => if c == 1 {Ok(s)} else {Err(Error::Undefined)},
-        Err(_) => Err(Error::Undefined),
+        Ok(1) => Ok(s),
+        Ok(0) => Err(Error::UserNotFound),
+        Ok(_)|Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -145,8 +148,9 @@ pub fn delete_user(db: &mut SqliteConnection, user_id: i32) -> Result<(), Error>
         .execute(db);
 
     match res {
-        Ok(c) => if c == 1 {Ok(())} else {Err(Error::Undefined)},
-        Err(_) => Err(Error::Undefined),
+        Ok(1) => Ok(()),
+        Ok(0) => Err(Error::UserNotFound),
+        Ok(_)|Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -160,7 +164,7 @@ pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
         .load(db);
 
     match user {
-        Ok(mut ui) => ui.pop(),
+        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
         Err(_) => None,
     }
 }
