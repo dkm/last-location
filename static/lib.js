@@ -94,9 +94,9 @@ function load_last_position(uniq_url) {
 
     if (userInfo.accuracy){
        L.circle([userInfo.lat, userInfo.lon], {
-        color: 'red',
-        fillColor: '#f03',
-        fillOpacity: 0.5,
+         color: 'red',
+         fillColor: '#f03',
+         fillOpacity: 0.5,
          radius: userInfo.accuracy,
       }).addTo(map);
     }
@@ -114,6 +114,13 @@ function load_last_position(uniq_url) {
       for (p in allUserInfo) {
         let pdate = new Date(allUserInfo[p].device_timestamp).toTimeString();
         detailed_coords_ol.innerHTML = detailed_coords_ol.innerHTML + `<li>${allUserInfo[p].lat} ${allUserInfo[p].lon} -- ${pdate}</li>`
+
+        L.circle([allUserInfo[p].lat, allUserInfo[p].lon], {
+          color: 'red',
+          fillColor: '#f03',
+          fillOpacity: 0.5,
+          radius: allUserInfo[p].accuracy,
+        }).addTo(map)
       }
     }
 
