@@ -6,7 +6,7 @@ use diesel::sqlite::SqliteConnection;
 use last_position::get_all_users;
 use last_position::run_migrations;
 use last_position::{create_user, generate_user_token, set_unique_url, delete_user, init};
-
+use last_position::models::{NewInfo, UserInfo, UserLocationPoint};
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -127,6 +127,31 @@ fn do_init(db_url: &str, _matches: &ArgMatches){
     run_migrations(db).expect("Can't init/run migrations")
 }
 
+fn do_list_locations(db_url: &str, matches: &ArgMatches){
+    use last_position::schema::info::dsl::*;
+
+    let mut db = &mut establish_connection(db_url);
+    let uid = matches
+        .get_one::<String>("user-id")
+        .unwrap()
+        .parse::<i32>()
+        .expect("Not an i32");
+
+    let limit_count = matches
+        .get_one::<String>("max-count")
+        .unwrap()
+        .parse::<i64>()
+        .expect("Not an i64");
+
+    let last_pos = info
+        .filter(user_id.eq(uid))
+        .limit(limit_count)
+        .select(UserLocationPoint::as_select())
+        .order(id.desc())
+        .load(db);
+
+}
+
 fn main() {
     let matches = Command::new("lastloc")
         .version("0.1")
@@ -142,6 +167,7 @@ fn main() {
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
         .subcommand(Command::new("delete-user").arg(Arg::new("user-id").long("user-id")))
         .subcommand(Command::new("list-users"))
+        .subcommand(Command::new("list-locations").arg(Arg::new("user-id").long("user-id")).arg(Arg::new("max-count").long("max-count")))
         .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
         .subcommand(
             Command::new("set-unique-url")
@@ -165,6 +191,7 @@ fn main() {
         Some(("create-user", sub_matches)) => do_create_user(&sql_db, sub_matches),
         Some(("delete-user", sub_matches)) => do_delete_user(&sql_db, sub_matches),
         Some(("list-users", sub_matches)) => do_list_users(&sql_db, sub_matches),
+        Some(("list-locations", sub_matches)) => do_list_locations(&sql_db, sub_matches),
         _ => println!("Wooops"),
     }
 }
