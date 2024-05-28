@@ -112,7 +112,8 @@ function load_last_position(uniq_url) {
       }).addTo(map);
 
       for (p in allUserInfo) {
-        let pdate = new Date(allUserInfo[p].device_timestamp).toTimeString();
+        let pdate = new Date(allUserInfo[p].device_timestamp * 1000).toISOString();
+        let tooltip = `<ul><li>lat:${allUserInfo[p].lat}</li><li>lon: ${allUserInfo[p].lon}</li><li>time: ${pdate}</li></ul>`
         detailed_coords_ol.innerHTML = detailed_coords_ol.innerHTML + `<li>${allUserInfo[p].lat} ${allUserInfo[p].lon} -- ${pdate}</li>`
 
         L.circle([allUserInfo[p].lat, allUserInfo[p].lon], {
@@ -120,12 +121,12 @@ function load_last_position(uniq_url) {
           fillColor: '#f03',
           fillOpacity: 0.5,
           radius: allUserInfo[p].accuracy,
-        }).addTo(map)
+        }).bindTooltip(tooltip).addTo(map);
       }
     }
 
     L.marker([userInfo.lat, userInfo.lon]).addTo(map)
-     .bindPopup('Last position:<br>' + convert_from_epoch(userInfo.device_timestamp))
+     .bindPopup('Last position:<br>' + new Date(userInfo.device_timestamp * 1000).toISOString())
      .openPopup()
  })
 }
