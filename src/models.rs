@@ -56,7 +56,7 @@ pub struct UserLocationPoint {
 
 impl fmt::Display for UserLocationPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(lat:{}, lon:{})", self.lat, self.lon)
+        write!(f, "(lat:{}, lon:{}, dev ts: {}, )", self.lat, self.lon, self.device_timestamp)
     }
 }
 
