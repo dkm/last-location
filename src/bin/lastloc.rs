@@ -4,9 +4,9 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 use last_position::get_all_users;
-use last_position::run_migrations;
-use last_position::{create_user, generate_user_token, set_unique_url, delete_user, init};
 use last_position::models::{NewInfo, UserInfo, UserLocationPoint};
+use last_position::run_migrations;
+use last_position::{create_user, delete_user, generate_user_token, init, set_unique_url};
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -46,8 +46,10 @@ fn do_list_users(db_url: &str, _matches: &ArgMatches) {
     let all_users = get_all_users(&mut db);
     match all_users {
         None => println!("No users"),
-        Some(v) => for user in v {
-            println!("{}", user);
+        Some(v) => {
+            for user in v {
+                println!("{}", user);
+            }
         }
     }
 }
@@ -121,13 +123,12 @@ fn do_expire(db_url: &str, matches: &ArgMatches) {
     }
 }
 
-
-fn do_init(db_url: &str, _matches: &ArgMatches){
+fn do_init(db_url: &str, _matches: &ArgMatches) {
     let db = &mut establish_connection(db_url);
     run_migrations(db).expect("Can't init/run migrations")
 }
 
-fn do_list_locations(db_url: &str, matches: &ArgMatches){
+fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     use last_position::schema::info::dsl::*;
 
     let mut db = &mut establish_connection(db_url);
@@ -148,8 +149,12 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches){
         .limit(limit_count)
         .select(UserLocationPoint::as_select())
         .order(id.desc())
-        .load(db);
+        .load(db)
+        .expect("Error querying db");
 
+    for pos in last_pos {
+        println!("- {}", pos);
+    }
 }
 
 fn main() {
@@ -167,7 +172,11 @@ fn main() {
         .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
         .subcommand(Command::new("delete-user").arg(Arg::new("user-id").long("user-id")))
         .subcommand(Command::new("list-users"))
-        .subcommand(Command::new("list-locations").arg(Arg::new("user-id").long("user-id")).arg(Arg::new("max-count").long("max-count")))
+        .subcommand(
+            Command::new("list-locations")
+                .arg(Arg::new("user-id").long("user-id"))
+                .arg(Arg::new("max-count").long("max-count")),
+        )
         .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
         .subcommand(
             Command::new("set-unique-url")

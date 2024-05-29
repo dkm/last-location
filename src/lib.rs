@@ -5,7 +5,6 @@ use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use serde::Serialize;
 
-
 #[derive(Debug, Serialize)]
 pub enum Error {
     NotFound,
@@ -22,7 +21,7 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
 pub fn init(db: &mut SqliteConnection) -> Result<(), Error> {
-    match sql_query("PRAGMA foreign_keys = ON").execute(db){
+    match sql_query("PRAGMA foreign_keys = ON").execute(db) {
         Ok(_) => Ok(()),
         Err(_) => Err(Error::Undefined),
     }
@@ -36,7 +35,11 @@ pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), Error> {
     }
 }
 
-pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -> Result<(), Error> {
+pub fn set_unique_url(
+    db: &mut SqliteConnection,
+    user_id: i32,
+    uniq_url: &str,
+) -> Result<(), Error> {
     use schema::users::dsl::*;
 
     let r = diesel::update(users)
@@ -46,16 +49,14 @@ pub fn set_unique_url(db: &mut SqliteConnection, user_id: i32, uniq_url: &str) -
     match r {
         Ok(1) => Ok(()),
         Ok(0) => Err(Error::UserNotFound),
-        Ok(_)|Err(_) => Err(Error::Undefined),
+        Ok(_) | Err(_) => Err(Error::Undefined),
     }
 }
 
-pub fn get_all_users(db: &mut SqliteConnection) -> Option<Vec<UserInfo>>{
+pub fn get_all_users(db: &mut SqliteConnection) -> Option<Vec<UserInfo>> {
     use schema::users::dsl::*;
 
-    let user = users
-        .select(UserInfo::as_select())
-        .load(db);
+    let user = users.select(UserInfo::as_select()).load(db);
     match user {
         Ok(ui) => Some(ui),
         Err(_) => None,
@@ -69,8 +70,15 @@ pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<Us
         .filter(unique_url.eq(uniq_url))
         .select(UserInfo::as_select())
         .load(db);
+
     match user {
-        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
+        Ok(mut ui) => {
+            if ui.len() == 1 {
+                ui.pop()
+            } else {
+                None
+            }
+        }
         Err(_) => None,
     }
 }
@@ -82,8 +90,15 @@ pub fn get_user_from_id(db: &mut SqliteConnection, uid: i32) -> Option<UserInfo>
         .filter(id.eq(uid))
         .select(UserInfo::as_select())
         .load(db);
+
     match user {
-        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
+        Ok(mut ui) => {
+            if ui.len() == 1 {
+                ui.pop()
+            } else {
+                None
+            }
+        }
         Err(_) => None,
     }
 }
@@ -95,8 +110,15 @@ pub fn get_user_from_token(db: &mut SqliteConnection, token: &str) -> Option<Use
         .filter(priv_token.eq(token))
         .select(UserInfo::as_select())
         .load(db);
+
     match user {
-        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
+        Ok(mut ui) => {
+            if ui.len() == 1 {
+                ui.pop()
+            } else {
+                None
+            }
+        }
         Err(_) => None,
     }
 }
@@ -118,7 +140,7 @@ pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<St
     match r {
         Ok(1) => Ok(s),
         Ok(0) => Err(Error::UserNotFound),
-        Ok(_)|Err(_) => Err(Error::Undefined),
+        Ok(_) | Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -150,7 +172,7 @@ pub fn delete_user(db: &mut SqliteConnection, user_id: i32) -> Result<(), Error>
     match res {
         Ok(1) => Ok(()),
         Ok(0) => Err(Error::UserNotFound),
-        Ok(_)|Err(_) => Err(Error::Undefined),
+        Ok(_) | Err(_) => Err(Error::Undefined),
     }
 }
 
@@ -164,15 +186,18 @@ pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
         .load(db);
 
     match user {
-        Ok(mut ui) => if ui.len() == 1 {ui.pop()} else { None },
+        Ok(mut ui) => {
+            if ui.len() == 1 {
+                ui.pop()
+            } else {
+                None
+            }
+        }
         Err(_) => None,
     }
 }
 
-pub fn add_info(
-    db: &mut SqliteConnection,
-    new_info: NewInfo,
-) -> Result<UserLocationPoint, Error> {
+pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<UserLocationPoint, Error> {
     use schema::info;
 
     get_user(db, new_info.user_id).ok_or(Error::NotFound)?;
@@ -188,7 +213,11 @@ pub fn add_info(
     }
 }
 
-pub fn get_last_info(db: &mut SqliteConnection, uid: i32, count: i64) -> Option<Vec<UserLocationPoint>> {
+pub fn get_last_info(
+    db: &mut SqliteConnection,
+    uid: i32,
+    count: i64,
+) -> Option<Vec<UserLocationPoint>> {
     use schema::info::dsl::*;
 
     let last_pos = info

@@ -12,10 +12,9 @@ use axum::{
 
 use diesel::SqliteConnection;
 use last_position::{
-    get_user_from_token,
-    models::{NewInfo, UserLocationPoint, UserInfo},
+    get_user_from_token, init,
+    models::{NewInfo, UserInfo, UserLocationPoint},
     run_migrations,
-    init,
 };
 
 use tower_http::{
@@ -39,10 +38,7 @@ struct S {
 
 async fn app(pool: Pool) -> Router {
     let conn = pool.get().await.unwrap();
-    conn.interact(|conn| init(conn))
-        .await
-        .unwrap()
-        .unwrap();
+    conn.interact(|conn| init(conn)).await.unwrap().unwrap();
 
     let conn = pool.get().await.unwrap();
     conn.interact(|conn| run_migrations(conn))
@@ -86,7 +82,6 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-
 /// Serde deserialization decorator to map empty Strings to None,
 fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
 where
@@ -124,7 +119,12 @@ async fn create_new_user(
     State(s): State<S>,
     Form(params): Form<CreateNewUserParams>,
 ) -> Result<Json<UserInfo>, (StatusCode, String)> {
-    event!(Level::TRACE, "create_new_user {} {} ", params.req_url, params.name);
+    event!(
+        Level::TRACE,
+        "create_new_user {} {} ",
+        params.req_url,
+        params.name
+    );
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     // Oh, this is ugly O_o
@@ -151,7 +151,8 @@ async fn create_new_user(
             let r = conn
                 .interact(move |conn| last_position::get_user_from_id(conn, uinfo.id))
                 .await
-                .unwrap().unwrap();
+                .unwrap()
+                .unwrap();
 
             event!(Level::TRACE, " get user again  {} ", r);
             return Ok(Json(r));

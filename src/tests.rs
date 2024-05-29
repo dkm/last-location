@@ -1,7 +1,9 @@
 #[cfg(test)]
 use super::*;
 use ::axum_test::TestServer;
-use last_position::{create_user, generate_user_token, get_user, run_migrations, set_unique_url, delete_user};
+use last_position::{
+    create_user, delete_user, generate_user_token, get_user, run_migrations, set_unique_url,
+};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -16,7 +18,7 @@ struct TestForm<'a> {
 #[tokio::test]
 async fn simple_location_post_get() {
     let db_url = "simple_location_post_get.sqlite";
-    if Path::new(&db_url).try_exists().unwrap(){
+    if Path::new(&db_url).try_exists().unwrap() {
         fs::remove_file(&db_url).unwrap();
     }
 
@@ -136,7 +138,6 @@ async fn simple_location_post_get() {
     assert_eq!(json_res[0].lat, 66.0f64);
     assert_eq!(json_res[0].lon, 77.0f64);
 
-
     let res = conn
         .interact(|conn| set_unique_url(conn, 1i32, "something_something"))
         .await
@@ -166,7 +167,6 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-
     let response = server
         .get("/api/get_last_location")
         .add_query_param("url", "something_something")
@@ -182,7 +182,7 @@ async fn simple_location_post_get() {
 #[tokio::test]
 async fn delete_user_test() {
     let db_url = "delete_user.sqlite";
-    if Path::new(&db_url).try_exists().unwrap(){
+    if Path::new(&db_url).try_exists().unwrap() {
         fs::remove_file(&db_url).unwrap();
     }
 
@@ -207,34 +207,18 @@ async fn delete_user_test() {
         .unwrap();
     assert!(res.is_ok());
 
-    let res = conn
-        .interact(|conn| delete_user(conn, 1))
-        .await
-        .unwrap();
+    let res = conn.interact(|conn| delete_user(conn, 1)).await.unwrap();
     assert!(res.is_ok());
 
-    let res = conn
-        .interact(|conn| delete_user(conn, 1))
-        .await
-        .unwrap();
+    let res = conn.interact(|conn| delete_user(conn, 1)).await.unwrap();
     assert!(res.is_err());
 
-    let res = conn
-        .interact(|conn| delete_user(conn, 3))
-        .await
-        .unwrap();
+    let res = conn.interact(|conn| delete_user(conn, 3)).await.unwrap();
     assert!(res.is_err());
 
-    let res = conn
-        .interact(|conn| delete_user(conn, 2))
-        .await
-        .unwrap();
+    let res = conn.interact(|conn| delete_user(conn, 2)).await.unwrap();
     assert!(res.is_ok());
 
-    let res = conn
-        .interact(|conn| delete_user(conn, 2))
-        .await
-        .unwrap();
+    let res = conn.interact(|conn| delete_user(conn, 2)).await.unwrap();
     assert!(res.is_err());
-
 }

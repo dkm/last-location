@@ -1,4 +1,7 @@
-use crate::schema::{info, users};
+use crate::schema::{
+    info::{self, accuracy},
+    users,
+};
 use std::fmt;
 
 use diesel::prelude::*;
@@ -15,12 +18,18 @@ pub struct UserInfo {
 
 impl fmt::Display for UserInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "id: {}, name: {}, priv_token: {}, unique_url: {}",
-               self.id,
-               // FIXME this is ugly.
-               self.name.clone().map_or("None".to_string(), |v| v.clone()),
-               self.priv_token.clone().map_or("None".to_string(), |v| v.clone()),
-               self.unique_url.clone().map_or("None".to_string(), |v| v.clone()),
+        write!(
+            f,
+            "id: {}, name: {}, priv_token: {}, unique_url: {}",
+            self.id,
+            // FIXME this is ugly.
+            self.name.clone().map_or("None".to_string(), |v| v.clone()),
+            self.priv_token
+                .clone()
+                .map_or("None".to_string(), |v| v.clone()),
+            self.unique_url
+                .clone()
+                .map_or("None".to_string(), |v| v.clone()),
         )
     }
 }
@@ -56,7 +65,44 @@ pub struct UserLocationPoint {
 
 impl fmt::Display for UserLocationPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(lat:{}, lon:{}, dev ts: {}, )", self.lat, self.lon, self.device_timestamp)
+        let alt = if let Some(a) = self.altitude {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+        let speed = if let Some(a) = self.speed {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+        let direction = if let Some(a) = self.direction {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+        let other_accuracy = if let Some(a) = self.accuracy {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+        let prov = if let Some(a) = self.loc_provider.as_ref() {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+        let bat = if let Some(a) = self.battery {
+            format!("{}", a)
+        } else {
+            "None".to_string()
+        };
+
+        write!(f, "(dev ts:{}, srv ts:{}, lat:{}, lon:{}, alt:{}, speed:{}, dir:{}, acc:{}, prov:{}, bat:{} )",
+               self.device_timestamp,
+               self.server_timestamp,
+               self.lat,
+               self.lon,
+               alt,
+               speed, direction, other_accuracy, prov, bat)
     }
 }
 
