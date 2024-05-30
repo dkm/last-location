@@ -60,7 +60,7 @@ function create_new_user(name, url) {
 function load_last_position(uniq_url) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
     url: uniq_url,
-    count: 10,
+    count: 20,
   })).then(response => {
       return response.json();
   })
