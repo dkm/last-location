@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 use last_position::get_all_users;
-use last_position::models::{NewInfo, UserInfo, UserLocationPoint};
+use last_position::models::UserLocationPoint;
 use last_position::run_migrations;
 use last_position::{create_user, delete_user, generate_user_token, init, set_unique_url};
 
@@ -131,7 +131,7 @@ fn do_init(db_url: &str, _matches: &ArgMatches) {
 fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     use last_position::schema::info::dsl::*;
 
-    let mut db = &mut establish_connection(db_url);
+    let db = &mut establish_connection(db_url);
     let uid = matches
         .get_one::<String>("user-id")
         .unwrap()
