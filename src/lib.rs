@@ -213,10 +213,39 @@ pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<UserLoca
     }
 }
 
+fn filter_last_info(values: Vec<UserLocationPoint>, time_gap_secs: i32) -> Vec<UserLocationPoint> {
+    let mut prev = 0;
+    let mut cut = false;
+
+    values
+        .into_iter()
+        .rev()
+        .filter(|x| {
+            if cut {
+                false
+            } else if prev == 0 {
+                prev = x.device_timestamp;
+                true
+            } else {
+                let pprev = prev;
+                prev = x.device_timestamp;
+                if pprev - prev > time_gap_secs {
+                    cut = true;
+                    false
+                } else {
+                    true
+                }
+            }
+        })
+        .rev()
+        .collect()
+}
+
 pub fn get_last_info(
     db: &mut SqliteConnection,
     uid: i32,
     count: i64,
+    cut_last_segment: bool,
 ) -> Option<Vec<UserLocationPoint>> {
     use schema::info::dsl::*;
 
@@ -230,7 +259,11 @@ pub fn get_last_info(
     match last_pos {
         Ok(found_pos) => {
             if !found_pos.is_empty() {
-                Some(found_pos)
+                if cut_last_segment {
+                    Some(filter_last_info(found_pos, 12 * 3600))
+                } else {
+                    Some(found_pos)
+                }
             } else {
                 None
             }

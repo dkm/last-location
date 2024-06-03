@@ -173,6 +173,8 @@ struct GetLastLocParams {
     url: Option<String>,
 
     count: Option<i64>,
+
+    cut_last_segment: Option<bool>,
 }
 
 async fn get_last_location(
@@ -208,9 +210,15 @@ async fn get_last_location(
         None => 1,
     };
 
+    let cut_last_segment = if let Some(cut) = params.cut_last_segment {
+        cut
+    } else {
+        false
+    };
+
     event!(Level::TRACE, "Get {}", uid);
     let res = conn
-        .interact(move |conn| last_position::get_last_info(conn, uid, count))
+        .interact(move |conn| last_position::get_last_info(conn, uid, count, cut_last_segment))
         .await
         .map_err(internal_error)?;
 
