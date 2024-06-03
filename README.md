@@ -6,6 +6,7 @@ The main repository is [on sourcehut](https://git.sr.ht/~dkm/last-location). Git
 - Expect lot of code churn.
 - A small and simple tool to keep track of the last position reported by a client (usually a smartphone, using [GPS Logger](https://gpslogger.app/)). My main use cases being flying using a paraglider or riding a MTB in nearby mountains.
 - Yet another software maintained by a single hobbyist with a [bus factor = 1](https://en.wikipedia.org/wiki/Bus_factor)
+- As is the case with many projects, the issue is "scoping". I'll try to keep the feature set small, no fancy things.
 ## What it is NOT
 - Yet another live tracking solution
 - Yet another activity sharing ("strava")
