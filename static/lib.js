@@ -61,6 +61,7 @@ function load_last_position(uniq_url) {
   fetch ("/api/get_last_location?" + new URLSearchParams({
     url: uniq_url,
     count: 20,
+    cut_last_segment: true,
   })).then(response => {
       return response.json();
   })
@@ -113,7 +114,11 @@ function load_last_position(uniq_url) {
 
       for (p in allUserInfo) {
         let pdate = new Date(allUserInfo[p].device_timestamp * 1000).toISOString();
-        let tooltip = `<ul><li>lat:${allUserInfo[p].lat}</li><li>lon: ${allUserInfo[p].lon}</li><li>time: ${pdate}</li></ul>`
+        let tooltip = `<ul><li>lat:${allUserInfo[p].lat}</li><li>lon: ${allUserInfo[p].lon}</li><li>time: ${pdate}</li>`
+        if (allUserInfo[p].speed) {
+          tooltip += `<li>speed: ${allUserInfo[p].speed}</li>`
+        }
+        tooltip += "</ul>"
         detailed_coords_ol.innerHTML = detailed_coords_ol.innerHTML + `<li>${allUserInfo[p].lat} ${allUserInfo[p].lon} -- ${pdate}</li>`
 
         L.circle([allUserInfo[p].lat, allUserInfo[p].lon], {
