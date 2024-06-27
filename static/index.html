@@ -56,10 +56,12 @@
 
 </body>
 
-<script>
+<script type="module">
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
 
-  load_last_position(urlParams.get('u'));
+  // await load_last_position_sec(urlParams.get('u'));
+  await load_last_position(urlParams.get('u'));
+
 </script>
 </html>

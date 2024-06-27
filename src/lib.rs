@@ -13,9 +13,9 @@ pub enum Error {
 }
 
 use diesel::{prelude::*, sql_query};
-use models::{NewInfo, UserInfo, UserLocationPoint};
+use models::{NewInfo, NewInfoSec, UserInfo, UserLocationPoint};
 
-use crate::models::NewUser;
+use crate::models::{NewUser, UserLocationPointSec};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
@@ -213,6 +213,21 @@ pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<UserLoca
     }
 }
 
+pub fn add_info_sec(db: &mut SqliteConnection, new_info: NewInfoSec) -> Result<(), Error> {
+    use schema::info_sec;
+
+    get_user(db, new_info.user_id).ok_or(Error::NotFound)?;
+
+    let res = diesel::insert_into(info_sec::table)
+        .values(&new_info)
+        .execute(db);
+
+    match res {
+        Ok(ulp) => Ok(()),
+        Err(_) => Err(Error::Undefined),
+    }
+}
+
 fn filter_last_info(values: Vec<UserLocationPoint>, time_gap_secs: i32) -> Vec<UserLocationPoint> {
     let mut prev = 0;
     let mut cut = false;
@@ -229,6 +244,37 @@ fn filter_last_info(values: Vec<UserLocationPoint>, time_gap_secs: i32) -> Vec<U
             } else {
                 let pprev = prev;
                 prev = x.device_timestamp;
+                if pprev - prev > time_gap_secs {
+                    cut = true;
+                    false
+                } else {
+                    true
+                }
+            }
+        })
+        .rev()
+        .collect()
+}
+
+fn filter_last_info_sec(
+    values: Vec<UserLocationPointSec>,
+    time_gap_secs: i32,
+) -> Vec<UserLocationPointSec> {
+    let mut prev = 0;
+    let mut cut = false;
+
+    values
+        .into_iter()
+        .rev()
+        .filter(|x| {
+            if cut {
+                false
+            } else if prev == 0 {
+                prev = x.server_timestamp;
+                true
+            } else {
+                let pprev = prev;
+                prev = x.server_timestamp;
                 if pprev - prev > time_gap_secs {
                     cut = true;
                     false
@@ -261,6 +307,37 @@ pub fn get_last_info(
             if !found_pos.is_empty() {
                 if cut_last_segment {
                     Some(filter_last_info(found_pos, 12 * 3600))
+                } else {
+                    Some(found_pos)
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    }
+}
+
+pub fn get_last_info_sec(
+    db: &mut SqliteConnection,
+    uid: i32,
+    count: i64,
+    cut_last_segment: bool,
+) -> Option<Vec<UserLocationPointSec>> {
+    use schema::info_sec::dsl::*;
+
+    let last_pos = info_sec
+        .filter(user_id.eq(uid))
+        .limit(count)
+        .select(UserLocationPointSec::as_select())
+        .order(id.desc())
+        .load(db);
+
+    match last_pos {
+        Ok(found_pos) => {
+            if !found_pos.is_empty() {
+                if cut_last_segment {
+                    Some(filter_last_info_sec(found_pos, 12 * 3600))
                 } else {
                     Some(found_pos)
                 }

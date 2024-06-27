@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests;
-
 use axum::{
     extract::Path,
     extract::{Query, State},
@@ -9,11 +8,12 @@ use axum::{
     routing::{get, post},
     Form, Router,
 };
+use hex;
 
 use diesel::SqliteConnection;
 use last_position::{
     get_user_from_token, init,
-    models::{NewInfo, UserInfo, UserLocationPoint},
+    models::{NewInfo, NewInfoSec, UserInfo, UserLocationPoint, UserLocationPointSec},
     run_migrations,
 };
 
@@ -51,6 +51,8 @@ async fn app(pool: Pool) -> Router {
         .route("/api/new", post(create_new_user))
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
+        .route("/api/s/get_last_location", get(get_last_location_secure))
+        .route("/api/s/set_last_location", post(set_last_location_secure))
         .nest_service("/", ServeDir::new("static"))
         .with_state(S { pool })
 }
@@ -177,6 +179,64 @@ struct GetLastLocParams {
     cut_last_segment: Option<bool>,
 }
 
+async fn get_last_location_secure(
+    Query(params): Query<GetLastLocParams>,
+    State(s): State<S>,
+) -> Result<Json<Vec<UserLocationPointSec>>, (StatusCode, String)> {
+    let conn = s.pool.get().await.map_err(internal_error)?;
+
+    if params.uid.is_some() && params.url.is_some()
+        || (params.uid.is_none() && params.url.is_none())
+    {
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    }
+
+    let uid = if let Some(u) = params.uid {
+        u
+    } else {
+        let url = params.url.unwrap();
+
+        let uinfo = conn
+            .interact(move |conn| last_position::get_user_from_url(conn, &url))
+            .await
+            .unwrap();
+        if let Some(uinfo) = uinfo {
+            uinfo.id
+        } else {
+            return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+        }
+    };
+
+    let count = match params.count {
+        Some(c) => c,
+        None => 1,
+    };
+
+    let cut_last_segment = if let Some(cut) = params.cut_last_segment {
+        cut
+    } else {
+        false
+    };
+
+    event!(
+        Level::TRACE,
+        "Get uid:{}, count:{}, cut:{}",
+        uid,
+        count,
+        cut_last_segment
+    );
+    let res = conn
+        .interact(move |conn| last_position::get_last_info_sec(conn, uid, count, cut_last_segment))
+        .await
+        .map_err(internal_error)?;
+
+    if res.is_some() {
+        Ok(Json(res.unwrap()))
+    } else {
+        Err((StatusCode::NOT_FOUND, "No match".to_string()))
+    }
+}
+
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
@@ -216,7 +276,13 @@ async fn get_last_location(
         false
     };
 
-    event!(Level::TRACE, "Get {}", uid);
+    event!(
+        Level::TRACE,
+        "Get uid:{}, count:{}, cut:{}",
+        uid,
+        count,
+        cut_last_segment
+    );
     let res = conn
         .interact(move |conn| last_position::get_last_info(conn, uid, count, cut_last_segment))
         .await
@@ -308,6 +374,69 @@ async fn set_last_location(
     match res {
         Err(_) => Err((StatusCode::NOT_FOUND, "No match".to_string())),
         Ok(r) => Ok(Json(r)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct SetLastLocSecParams {
+    // this is the only diff with NewInfo
+    pub priv_token: String,
+    pub server_timestamp: Option<i32>,
+    pub data: String,
+}
+
+impl SetLastLocSecParams {
+    pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfoSec> {
+        let uinfo = get_user_from_token(db, &self.priv_token);
+
+        // FIXME
+        let byte_data = hex::decode(self.data.clone()).unwrap();
+
+        match uinfo {
+            Some(uinfo) => Some(NewInfoSec {
+                user_id: uinfo.id,
+                server_timestamp: self.server_timestamp,
+                data: byte_data,
+            }),
+            None => None,
+        }
+    }
+}
+
+async fn set_last_location_secure(
+    State(s): State<S>,
+    Form(new_info): Form<SetLastLocSecParams>,
+) -> Result<(), (StatusCode, String)> {
+    let conn = s.pool.get().await.map_err(internal_error)?;
+
+    let pinfo = conn
+        .interact(move |conn| new_info.to_newinfo(conn))
+        .await
+        .map_err(internal_error)?;
+
+    if pinfo.is_none() {
+        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+    }
+
+    let mut pinfo = pinfo.unwrap();
+
+    pinfo.server_timestamp = Some(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Can't get epoch")
+            .as_secs() as i32,
+    );
+    event!(Level::TRACE, "Set {:?}", pinfo);
+
+    let res = conn
+        .interact(|conn| last_position::add_info_sec(conn, pinfo))
+        .await
+        .map_err(internal_error)?;
+
+    match res {
+        Err(_) => Err((StatusCode::NOT_FOUND, "No match".to_string())),
+        Ok(r) => Ok(()),
     }
 }
 

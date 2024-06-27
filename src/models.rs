@@ -1,7 +1,8 @@
 use crate::schema::{
     info::{self, accuracy},
-    users,
+    info_sec, users,
 };
+use hex;
 use std::fmt;
 
 use diesel::prelude::*;
@@ -106,6 +107,29 @@ impl fmt::Display for UserLocationPoint {
     }
 }
 
+#[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[diesel(table_name = info_sec)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct UserLocationPointSec {
+    pub user_id: i32,
+    pub id: i32,
+
+    // See you in 2038...
+    pub server_timestamp: i32,
+    pub data: Vec<u8>,
+}
+
+impl fmt::Display for UserLocationPointSec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "(srv ts:{}, data: 0x{})",
+            self.server_timestamp,
+            hex::encode(&self.data),
+        )
+    }
+}
+
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = info)]
 pub struct NewInfo {
@@ -125,4 +149,13 @@ pub struct NewInfo {
 
     pub loc_provider: Option<String>,
     pub battery: Option<f64>,
+}
+
+#[derive(Insertable, serde::Deserialize, Clone, Debug)]
+#[diesel(table_name = info_sec)]
+pub struct NewInfoSec {
+    pub user_id: i32,
+
+    pub server_timestamp: Option<i32>,
+    pub data: Vec<u8>,
 }

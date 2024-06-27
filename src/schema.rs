@@ -4,8 +4,8 @@ diesel::table! {
     info (id) {
         id -> Integer,
         user_id -> Integer,
-        device_timestamp -> Integer,
         server_timestamp -> Integer,
+        device_timestamp -> Integer,
         lat -> Double,
         lon -> Double,
         altitude -> Nullable<Double>,
@@ -14,6 +14,15 @@ diesel::table! {
         accuracy -> Nullable<Double>,
         loc_provider -> Nullable<Text>,
         battery -> Nullable<Double>,
+    }
+}
+
+diesel::table! {
+    info_sec (id) {
+        id -> Integer,
+        user_id -> Integer,
+        server_timestamp -> Integer,
+        data -> Binary,
     }
 }
 
@@ -27,5 +36,6 @@ diesel::table! {
 }
 
 diesel::joinable!(info -> users (user_id));
+diesel::joinable!(info_sec -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(info, users,);
+diesel::allow_tables_to_appear_in_same_query!(info, info_sec, users,);

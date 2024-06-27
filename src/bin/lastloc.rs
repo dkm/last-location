@@ -1,10 +1,10 @@
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 use last_position::get_all_users;
-use last_position::models::UserLocationPoint;
+use last_position::models::{UserLocationPoint, UserLocationPointSec};
 use last_position::run_migrations;
 use last_position::{create_user, delete_user, generate_user_token, init, set_unique_url};
 
@@ -129,8 +129,6 @@ fn do_init(db_url: &str, _matches: &ArgMatches) {
 }
 
 fn do_list_locations(db_url: &str, matches: &ArgMatches) {
-    use last_position::schema::info::dsl::*;
-
     let db = &mut establish_connection(db_url);
     let uid = matches
         .get_one::<String>("user-id")
@@ -144,16 +142,34 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
         .parse::<i64>()
         .expect("Not an i64");
 
-    let last_pos = info
-        .filter(user_id.eq(uid))
-        .limit(limit_count)
-        .select(UserLocationPoint::as_select())
-        .order(id.desc())
-        .load(db)
-        .expect("Error querying db");
+    let secure = matches.get_flag("secure");
 
-    for pos in last_pos {
-        println!("- {}", pos);
+    if !secure {
+        use last_position::schema::info::dsl::*;
+        let last_pos = info
+            .filter(user_id.eq(uid))
+            .limit(limit_count)
+            .select(UserLocationPoint::as_select())
+            .order(id.desc())
+            .load(db)
+            .expect("Error querying db");
+
+        for pos in last_pos {
+            println!("- {}", pos);
+        }
+    } else {
+        use last_position::schema::info_sec::dsl::*;
+        let last_pos = info_sec
+            .filter(user_id.eq(uid))
+            .limit(limit_count)
+            .select(UserLocationPointSec::as_select())
+            .order(id.desc())
+            .load(db)
+            .expect("Error querying db");
+
+        for pos in last_pos {
+            println!("- [crypt] {}", pos);
+        }
     }
 }
 
@@ -175,7 +191,8 @@ fn main() {
         .subcommand(
             Command::new("list-locations")
                 .arg(Arg::new("user-id").long("user-id"))
-                .arg(Arg::new("max-count").long("max-count")),
+                .arg(Arg::new("max-count").long("max-count"))
+                .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
         )
         .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
         .subcommand(

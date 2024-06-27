@@ -57,15 +57,7 @@ function create_new_user(name, url) {
     });
 }
 
-function load_last_position(uniq_url) {
-  fetch ("/api/get_last_location?" + new URLSearchParams({
-    url: uniq_url,
-    count: 20,
-    cut_last_segment: true,
-  })).then(response => {
-      return response.json();
-  })
-  .then(allUserInfo => {
+function display_positions(allUserInfo){
     let userInfo = allUserInfo[0];
     let prevInfo = allUserInfo.slice(1);
 
@@ -133,5 +125,68 @@ function load_last_position(uniq_url) {
     L.marker([userInfo.lat, userInfo.lon]).addTo(map)
      .bindPopup('Last position:<br>' + new Date(userInfo.device_timestamp * 1000).toISOString())
      .openPopup()
- })
+}
+
+async function load_last_position(uniq_url) {
+  var resp = await fetch ("/api/get_last_location?" + new URLSearchParams({
+    url: uniq_url,
+    count: 20,
+    cut_last_segment: true,
+  }));
+
+  var positions = await resp.json();
+  display_positions(positions);
+}
+
+const hex_decode = (string) => {
+    const uint8array = new Uint8Array(Math.ceil(string.length / 2));
+    for (let i = 0; i < string.length;)
+        uint8array[i / 2] = Number.parseInt(string.slice(i, i += 2), 16);
+    return uint8array;
+}
+
+async function load_last_position_sec(uniq_url) {
+  // Sample KEY/IV
+  // FIXME: will come from client part of URL + stored data in DB
+  let byte_key = hex_decode("b52c505a37d78eda5dd34f20c22540ea1b58963cf8e5bf8ffa85f9f2492505b4");
+  let iv   = hex_decode("abababababababababababab");
+
+  let key = await window.crypto.subtle.importKey(
+    "raw",
+    byte_key,
+    {
+	    name: "AES-GCM",
+	  },
+    false,
+	  ["decrypt"]
+  );
+
+  const response = await fetch ("/api/s/get_last_location?" + new URLSearchParams({
+    url: uniq_url,
+    count: 20,
+    cut_last_segment: true,
+  }));
+
+  const res_json = await response.json();
+
+  var all_res = new Array();
+
+  for (u in res_json) {
+    let buf = new Uint8Array(res_json[u].data);
+
+    let plain_text_deciphered =  await window.crypto.subtle.decrypt(
+      {
+	      name: "AES-GCM",
+	      iv: iv,
+	      tagLength: 128,
+	    },
+      key,
+      buf,
+    );
+
+    var decoder = new TextDecoder("utf-8");
+    var dec_json = JSON.parse(decoder.decode(plain_text_deciphered));
+    all_res.push(toto);
+  }
+  display_positions(all_res);
 }
