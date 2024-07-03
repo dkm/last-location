@@ -146,13 +146,8 @@ const hex_decode = (string) => {
 }
 
 async function load_last_position_sec(uniq_url) {
-  // Sample KEY/IV
-  // FIXME: will come from client part of URL + stored data in DB
-
   var str_key = window.location.hash.substring(1);
-  //let byte_key = hex_decode("b52c505a37d78eda5dd34f20c22540ea1b58963cf8e5bf8ffa85f9f2492505b4");
   let byte_key = hex_decode(str_key);
-  let iv   = hex_decode("abababababababababababab");
 
   let key = await window.crypto.subtle.importKey(
     "raw",
@@ -175,7 +170,10 @@ async function load_last_position_sec(uniq_url) {
   var all_res = new Array();
 
   for (u in res_json) {
-    let buf = new Uint8Array(res_json[u].data);
+    let all_data = new Uint8Array(res_json[u].data);
+
+    let iv = all_data.slice(0, 12); // 96-bits IV
+    let buf = all_data.slice(12);
 
     let plain_text_deciphered =  await window.crypto.subtle.decrypt(
       {
