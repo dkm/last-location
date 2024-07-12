@@ -24,7 +24,7 @@
 </head>
 <body>
   <ul id="infobox">
-    <li>User: <span id="user_id"/> </li>
+    <li>Log: <span id="log_id"/> </li>
     <li>Measure uid: <span id="user_location_id"/> </li>
     <li><i class="fa fa-wifi" aria-hidden="true"></i>: <span id="user_accuracy" /> </li>
     <li>Location source: <span id="user_provider" /> </li>
@@ -60,8 +60,11 @@
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
 
-  // await load_last_position_sec(urlParams.get('u'));
-  await load_last_position(urlParams.get('u'));
-
+  if (urlParams.get('sec') == '1') {
+    await load_last_position_sec(urlParams.get('u'));
+  } else {
+    await load_last_position(urlParams.get('u'));  
+  }
+    
 </script>
 </html>

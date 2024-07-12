@@ -3,7 +3,7 @@
 diesel::table! {
     info (id) {
         id -> Integer,
-        user_id -> Integer,
+        log_id -> Integer,
         server_timestamp -> Integer,
         device_timestamp -> Integer,
         lat -> Double,
@@ -20,22 +20,22 @@ diesel::table! {
 diesel::table! {
     info_sec (id) {
         id -> Integer,
-        user_id -> Integer,
+        log_id -> Integer,
         server_timestamp -> Integer,
         data -> Binary,
     }
 }
 
 diesel::table! {
-    users (id) {
+    logs (id) {
         id -> Integer,
-        name -> Nullable<Text>,
         priv_token -> Nullable<Text>,
         unique_url -> Nullable<Text>,
+        last_activity -> Nullable<Integer>,
     }
 }
 
-diesel::joinable!(info -> users (user_id));
-diesel::joinable!(info_sec -> users (user_id));
+diesel::joinable!(info -> logs (log_id));
+diesel::joinable!(info_sec -> logs (log_id));
 
-diesel::allow_tables_to_appear_in_same_query!(info, info_sec, users,);
+diesel::allow_tables_to_appear_in_same_query!(info, info_sec, logs,);

@@ -28,6 +28,12 @@ hyper = { version = "1.2", features = ["client"] }
 rand = "0.8.5"
 clap = "4.5.4"
 hex = "0.4.3"
+aes-gcm = "0.10.3"
+hex-literal = "0.4.1"
+reqwest = { version = "0.12.5", features = ["json", "rustls-tls", "multipart", "stream"] }
+word_generator = "0.1.1"
+predicates = { version = "3.1.2", features = ["regex"] }
+thiserror = "1.0.63"
 
 [dev-dependencies]
 assert_cmd = "2.0.14"

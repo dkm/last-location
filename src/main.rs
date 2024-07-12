@@ -8,19 +8,14 @@ use axum::{
     routing::{get, post},
     Form, Router,
 };
-use hex;
-
 use diesel::SqliteConnection;
 use last_position::{
-    get_user_from_token, init,
-    models::{NewInfo, NewInfoSec, UserInfo, UserLocationPoint, UserLocationPointSec},
+    get_log_from_token, init,
+    models::{LogInfo, LogLocationPoint, LogLocationPointSec, NewInfo, NewInfoSec},
     run_migrations,
 };
 
-use tower_http::{
-    services::{ServeDir, ServeFile},
-    trace::TraceLayer,
-};
+use tower_http::services::ServeDir;
 
 use serde::{de, Deserialize, Deserializer};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -38,21 +33,20 @@ struct S {
 
 async fn app(pool: Pool) -> Router {
     let conn = pool.get().await.unwrap();
-    conn.interact(|conn| init(conn)).await.unwrap().unwrap();
+    conn.interact(init).await.unwrap().unwrap();
 
     let conn = pool.get().await.unwrap();
-    conn.interact(|conn| run_migrations(conn))
-        .await
-        .unwrap()
-        .unwrap();
+    conn.interact(run_migrations).await.unwrap().unwrap();
 
     Router::new()
-        .route("/s/:uniq_url", get(get_stable_infopage))
-        .route("/api/new", post(create_new_user))
+        .route("/s/:sec/:uniq_url", get(get_stable_infopage))
+        .route("/api/genlog", get(generate_log_id))
         .route("/api/get_last_location", get(get_last_location))
         .route("/api/set_last_location", post(set_last_location))
+        // /s/ => secured
         .route("/api/s/get_last_location", get(get_last_location_secure))
         .route("/api/s/set_last_location", post(set_last_location_secure))
+        // Serve all the static content (html, js, css)
         .nest_service("/", ServeDir::new("static"))
         .with_state(S { pool })
 }
@@ -77,9 +71,7 @@ async fn main() {
 
     let app = app(pool).await;
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
@@ -101,68 +93,37 @@ where
 }
 
 async fn get_stable_infopage(
-    Path(uniq_url): Path<String>,
+    Path((sec, uniq_url)): Path<(String, String)>,
 ) -> Result<Redirect, (StatusCode, String)> {
     event!(Level::TRACE, "stable {}", uniq_url);
-    Ok(Redirect::temporary(&format!("/?u={uniq_url}")))
+    let is_sec = if sec.eq("s") { 1u8 } else { 0u8 };
+    Ok(Redirect::temporary(&format!("/?sec={is_sec}&u={uniq_url}")))
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct CreateNewUserParams {
-    #[serde(default)]
-    req_url: String,
-
-    #[serde(default)]
-    name: String,
-}
-
-async fn create_new_user(
+async fn generate_log_id(
     State(s): State<S>,
-    Form(params): Form<CreateNewUserParams>,
-) -> Result<Json<UserInfo>, (StatusCode, String)> {
-    event!(
-        Level::TRACE,
-        "create_new_user {} {} ",
-        params.req_url,
-        params.name
-    );
+    //    Form(params): Form<GenerateNewLogIdParams>,
+) -> Result<Json<LogInfo>, (StatusCode, String)> {
+    event!(Level::TRACE, "generate_log_id");
+
     let conn = s.pool.get().await.map_err(internal_error)?;
 
-    // Oh, this is ugly O_o
-
     let uinfo = conn
-        .interact(move |conn| last_position::create_user(conn, &params.name))
+        .interact(move |conn| last_position::generate_new_log(conn, true))
         .await
         .unwrap();
+
     if let Ok(uinfo) = uinfo {
-        event!(Level::TRACE, " got a user {} ", uinfo);
-        let res = conn
-            .interact(move |conn| last_position::set_unique_url(conn, uinfo.id, &params.req_url))
+        let r = conn
+            .interact(move |conn| last_position::get_log_from_id(conn, uinfo.id))
             .await
+            .unwrap()
             .unwrap();
-        event!(Level::TRACE, " set unique  {} ", res.is_ok());
 
-        let res = conn
-            .interact(move |conn| last_position::generate_user_token(conn, uinfo.id))
-            .await
-            .unwrap();
-        event!(Level::TRACE, " generated a token {} ", res.is_ok());
-
-        if res.is_ok() {
-            let r = conn
-                .interact(move |conn| last_position::get_user_from_id(conn, uinfo.id))
-                .await
-                .unwrap()
-                .unwrap();
-
-            event!(Level::TRACE, " get user again  {} ", r);
-            return Ok(Json(r));
-        }
-        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
-    } else {
-        return Err((StatusCode::NOT_FOUND, "No match".to_string()));
+        event!(Level::TRACE, " get log again  {} ", r);
+        return Ok(Json(r));
     }
+    Err((StatusCode::NOT_FOUND, "No match".to_string()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,7 +143,7 @@ struct GetLastLocParams {
 async fn get_last_location_secure(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
-) -> Result<Json<Vec<UserLocationPointSec>>, (StatusCode, String)> {
+) -> Result<Json<Vec<LogLocationPointSec>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     if params.uid.is_some() && params.url.is_some()
@@ -197,7 +158,7 @@ async fn get_last_location_secure(
         let url = params.url.unwrap();
 
         let uinfo = conn
-            .interact(move |conn| last_position::get_user_from_url(conn, &url))
+            .interact(move |conn| last_position::get_log_from_url(conn, &url))
             .await
             .unwrap();
         if let Some(uinfo) = uinfo {
@@ -207,16 +168,9 @@ async fn get_last_location_secure(
         }
     };
 
-    let count = match params.count {
-        Some(c) => c,
-        None => 1,
-    };
+    let count = params.count.unwrap_or(1);
 
-    let cut_last_segment = if let Some(cut) = params.cut_last_segment {
-        cut
-    } else {
-        false
-    };
+    let cut_last_segment = params.cut_last_segment.unwrap_or_default();
 
     event!(
         Level::TRACE,
@@ -230,8 +184,8 @@ async fn get_last_location_secure(
         .await
         .map_err(internal_error)?;
 
-    if res.is_some() {
-        Ok(Json(res.unwrap()))
+    if let Some(r) = res {
+        Ok(Json(r))
     } else {
         Err((StatusCode::NOT_FOUND, "No match".to_string()))
     }
@@ -240,7 +194,7 @@ async fn get_last_location_secure(
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
-) -> Result<Json<Vec<UserLocationPoint>>, (StatusCode, String)> {
+) -> Result<Json<Vec<LogLocationPoint>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     if params.uid.is_some() && params.url.is_some()
@@ -255,7 +209,7 @@ async fn get_last_location(
         let url = params.url.unwrap();
 
         let uinfo = conn
-            .interact(move |conn| last_position::get_user_from_url(conn, &url))
+            .interact(move |conn| last_position::get_log_from_url(conn, &url))
             .await
             .unwrap();
         if let Some(uinfo) = uinfo {
@@ -265,16 +219,9 @@ async fn get_last_location(
         }
     };
 
-    let count = match params.count {
-        Some(c) => c,
-        None => 1,
-    };
+    let count = params.count.unwrap_or(1);
 
-    let cut_last_segment = if let Some(cut) = params.cut_last_segment {
-        cut
-    } else {
-        false
-    };
+    let cut_last_segment = params.cut_last_segment.unwrap_or_default();
 
     event!(
         Level::TRACE,
@@ -288,8 +235,8 @@ async fn get_last_location(
         .await
         .map_err(internal_error)?;
 
-    if res.is_some() {
-        Ok(Json(res.unwrap()))
+    if let Some(r) = res {
+        Ok(Json(r))
     } else {
         Err((StatusCode::NOT_FOUND, "No match".to_string()))
     }
@@ -319,11 +266,11 @@ pub struct SetLastLocParams {
 
 impl SetLastLocParams {
     pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfo> {
-        let uinfo = get_user_from_token(db, &self.priv_token);
+        let uinfo = get_log_from_token(db, &self.priv_token);
 
         match uinfo {
             Some(uinfo) => Some(NewInfo {
-                user_id: uinfo.id,
+                log_id: uinfo.id,
 
                 device_timestamp: self.device_timestamp,
                 server_timestamp: self.server_timestamp,
@@ -344,7 +291,7 @@ impl SetLastLocParams {
 async fn set_last_location(
     State(s): State<S>,
     Form(new_info): Form<SetLastLocParams>,
-) -> Result<Json<UserLocationPoint>, (StatusCode, String)> {
+) -> Result<Json<LogLocationPoint>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     let pinfo = conn
@@ -388,14 +335,14 @@ pub struct SetLastLocSecParams {
 
 impl SetLastLocSecParams {
     pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfoSec> {
-        let uinfo = get_user_from_token(db, &self.priv_token);
+        let uinfo = get_log_from_token(db, &self.priv_token);
 
         // FIXME
         let byte_data = hex::decode(self.data.clone()).unwrap();
 
         match uinfo {
             Some(uinfo) => Some(NewInfoSec {
-                user_id: uinfo.id,
+                log_id: uinfo.id,
                 server_timestamp: self.server_timestamp,
                 data: byte_data,
             }),
@@ -436,7 +383,7 @@ async fn set_last_location_secure(
 
     match res {
         Err(_) => Err((StatusCode::NOT_FOUND, "No match".to_string())),
-        Ok(r) => Ok(()),
+        Ok(_) => Ok(()),
     }
 }
 

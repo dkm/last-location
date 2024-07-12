@@ -2,11 +2,13 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-
-use last_position::get_all_users;
-use last_position::models::{UserLocationPoint, UserLocationPointSec};
+use last_position::get_all_logs;
+use last_position::models::NewInfo;
+use last_position::models::NewInfoSec;
+use last_position::models::{LogLocationPoint, LogLocationPointSec};
 use last_position::run_migrations;
-use last_position::{create_user, delete_user, generate_user_token, init, set_unique_url};
+use last_position::{add_info, add_info_sec};
+use last_position::{delete_log, generate_log_token, generate_new_log, init, set_unique_url};
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -14,112 +16,168 @@ pub fn establish_connection(db_url: &str) -> SqliteConnection {
 }
 
 fn do_gen_priv_token(db_url: &str, matches: &ArgMatches) {
-    let mut db = &mut establish_connection(db_url);
+    let db = &mut establish_connection(db_url);
     let uid = matches
-        .get_one::<String>("user-id")
+        .get_one::<String>("log-id")
         .unwrap()
         .parse::<i32>()
         .expect("Not an i32");
-    generate_user_token(&mut db, uid).expect("Error generating priv");
+    generate_log_token(db, uid).expect("Error generating priv");
 }
 
-fn do_create_user(db_url: &str, matches: &ArgMatches) {
-    let mut db = &mut establish_connection(db_url);
-    let name = matches.get_one::<String>("name").unwrap();
+fn do_create_log(db_url: &str, matches: &ArgMatches) {
+    let db = &mut establish_connection(db_url);
+    let no_token_url = !matches.get_one::<bool>("no-token-url").unwrap();
 
-    create_user(&mut db, name).expect("Error creating user");
+    generate_new_log(db, no_token_url).expect("Error creating new log");
 }
 
-fn do_delete_user(db_url: &str, matches: &ArgMatches) {
-    let mut db = &mut establish_connection(db_url);
+fn do_delete_log(db_url: &str, matches: &ArgMatches) {
+    let db = &mut establish_connection(db_url);
     let uid = matches
-        .get_one::<String>("user-id")
+        .get_one::<String>("log-id")
         .unwrap()
         .parse::<i32>()
         .expect("Not an i32");
 
-    delete_user(&mut db, uid).expect("Error deleting user");
+    delete_log(db, uid).expect("Error deleting log");
 }
 
-fn do_list_users(db_url: &str, _matches: &ArgMatches) {
-    let mut db = &mut establish_connection(db_url);
-    let all_users = get_all_users(&mut db);
-    match all_users {
-        None => println!("No users"),
+fn do_list_logs(db_url: &str, _matches: &ArgMatches) {
+    let db = &mut establish_connection(db_url);
+    let all_logs = get_all_logs(db);
+    match all_logs {
+        None => println!("No log"),
         Some(v) => {
-            for user in v {
-                println!("{}", user);
+            for log in v {
+                println!("{}", log);
             }
         }
     }
 }
 
 fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
-    let mut db = &mut establish_connection(db_url);
+    let db = &mut establish_connection(db_url);
     let url = matches.get_one::<String>("url").unwrap();
-    let user_id = matches
-        .get_one::<String>("user-id")
+    let log_id = matches
+        .get_one::<String>("log-id")
         .unwrap()
         .parse::<i32>()
         .expect("Not an i32");
-    set_unique_url(&mut db, user_id, url).expect("Error setting url");
+    set_unique_url(db, log_id, url).expect("Error setting url");
 }
 
-fn do_expire(db_url: &str, matches: &ArgMatches) {
+fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
     let limit_count = matches
         .get_one::<String>("max-count")
         .unwrap()
         .parse::<i32>()
         .expect("Not an i32");
+    let secure = matches.get_flag("secure");
 
-    let mut db = &mut establish_connection(db_url);
+    // let _limit_lifetime = matches
+    //     .get_one::<String>("max-lifetime")
+    //     .unwrap()
+    //     .parse::<i32>()
+    //     .expect("Not an i32");
 
-    let all_users = get_all_users(&mut db).expect("failed to get users, FIXME error handling");
+    let db = &mut establish_connection(db_url);
 
-    for user in all_users {
-        use last_position::schema::info::dsl::*;
-        let old_count = info
-            .filter(user_id.eq(user.id))
-            .count()
-            .first::<i64>(db)
-            .expect("Error counting existing measures");
+    let all_logs = get_all_logs(db).expect(
+        "failed to get logs, FIXME error
+    handling",
+    );
 
-        if old_count < (limit_count as i64) {
-            continue;
+    for log in all_logs {
+        if !secure {
+            use last_position::schema::info::dsl::*;
+            let old_count = info
+                .filter(log_id.eq(log.id))
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting existing log points");
+
+            if old_count < (limit_count as i64) {
+                continue;
+            }
+
+            let to_keep = info
+                .select(server_timestamp)
+                .filter(log_id.eq(log.id))
+                .order(server_timestamp.desc())
+                .limit(limit_count as i64);
+
+            let res = to_keep.load::<i32>(db).expect("Can't load last records");
+            let ts_limit = res[(limit_count - 1) as usize];
+
+            let to_expire = info.filter(server_timestamp.lt(ts_limit));
+
+            let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            let expire_count = to_expire
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting rows to expire");
+
+            println!("SQL: {}", sql);
+            println!(
+                "Log: {}, all count: {}, to expire: {}",
+                log.id, old_count, expire_count
+            );
+
+            let _ = diesel::delete(to_expire).execute(db);
+
+            let new_count = info
+                .filter(log_id.eq(log.id))
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting existing measures");
+
+            println!("Log: {}, new count: {}", log.id, new_count);
+        } else {
+            use last_position::schema::info_sec::dsl::*;
+            let old_count = info_sec
+                .filter(log_id.eq(log.id))
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting existing log points");
+
+            if old_count < (limit_count as i64) {
+                continue;
+            }
+
+            let to_keep = info_sec
+                .select(server_timestamp)
+                .filter(log_id.eq(log.id))
+                .order(server_timestamp.desc())
+                .limit(limit_count as i64);
+
+            let res = to_keep.load::<i32>(db).expect("Can't load last records");
+            let ts_limit = res[(limit_count - 1) as usize];
+
+            let to_expire = info_sec.filter(server_timestamp.lt(ts_limit));
+
+            let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            let expire_count = to_expire
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting rows to expire");
+
+            println!("SQL: {}", sql);
+            println!(
+                "Log: {}, all count: {}, to expire: {}",
+                log.id, old_count, expire_count
+            );
+
+            let _ = diesel::delete(to_expire).execute(db);
+
+            let new_count = info_sec
+                .filter(log_id.eq(log.id))
+                .count()
+                .first::<i64>(db)
+                .expect("Error counting existing measures");
+
+            println!("Log: {}, new count: {}", log.id, new_count);
         }
-
-        let to_keep = info
-            .select(server_timestamp)
-            .filter(user_id.eq(user.id))
-            .order(server_timestamp.desc())
-            .limit(limit_count as i64);
-
-        let res = to_keep.load::<i32>(db).expect("Can't load last records");
-        let ts_limit = res[(limit_count - 1) as usize];
-
-        let to_expire = info.filter(server_timestamp.le(ts_limit));
-
-        let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
-        let expire_count = to_expire
-            .count()
-            .first::<i64>(db)
-            .expect("Error counting rows to expire");
-
-        println!("SQL: {}", sql);
-        println!(
-            "User: {}, all count: {}, to expire: {}",
-            user.id, old_count, expire_count
-        );
-
-        let _ = diesel::delete(to_expire).execute(db);
-
-        let new_count = info
-            .filter(user_id.eq(user.id))
-            .count()
-            .first::<i64>(db)
-            .expect("Error counting existing measures");
-
-        println!("User: {}, new count: {}", user.id, new_count);
     }
 }
 
@@ -128,10 +186,31 @@ fn do_init(db_url: &str, _matches: &ArgMatches) {
     run_migrations(db).expect("Can't init/run migrations")
 }
 
+fn do_add_to_log(db_url: &str, matches: &ArgMatches) {
+    let db = &mut establish_connection(db_url);
+    let secure = matches.get_flag("secure");
+
+    let data_path = matches.get_one::<String>("data").expect("can't be missing");
+    let data_str = std::fs::read_to_string(data_path).expect("Unable to read file");
+    if !secure {
+        let all_data: Vec<NewInfo> =
+            serde_json::from_str(&data_str).expect("JSON does not have correct format.");
+        for ni in all_data {
+            add_info(db, ni).expect("error adding location");
+        }
+    } else {
+        let all_data: Vec<NewInfoSec> =
+            serde_json::from_str(&data_str).expect("JSON does not have correct format.");
+        for ni in all_data {
+            add_info_sec(db, ni).expect("error adding location");
+        }
+    }
+}
+
 fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     let db = &mut establish_connection(db_url);
     let uid = matches
-        .get_one::<String>("user-id")
+        .get_one::<String>("log-id")
         .unwrap()
         .parse::<i32>()
         .expect("Not an i32");
@@ -147,10 +226,10 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     if !secure {
         use last_position::schema::info::dsl::*;
         let last_pos = info
-            .filter(user_id.eq(uid))
+            .filter(log_id.eq(uid))
             .limit(limit_count)
-            .select(UserLocationPoint::as_select())
-            .order(id.desc())
+            .select(LogLocationPoint::as_select())
+            .order(server_timestamp.desc())
             .load(db)
             .expect("Error querying db");
 
@@ -160,9 +239,9 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     } else {
         use last_position::schema::info_sec::dsl::*;
         let last_pos = info_sec
-            .filter(user_id.eq(uid))
+            .filter(log_id.eq(uid))
             .limit(limit_count)
-            .select(UserLocationPointSec::as_select())
+            .select(LogLocationPointSec::as_select())
             .order(id.desc())
             .load(db)
             .expect("Error querying db");
@@ -173,7 +252,7 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("lastloc")
         .version("0.1")
         .author("Marc Poulhiès <dkm@kataplop.net>")
@@ -184,40 +263,62 @@ fn main() {
                 .default_value("info.sqlite"),
         )
         .subcommand(Command::new("init"))
-        .subcommand(Command::new("expire").arg(Arg::new("max-count").long("max-count")))
-        .subcommand(Command::new("create-user").arg(Arg::new("name").long("name")))
-        .subcommand(Command::new("delete-user").arg(Arg::new("user-id").long("user-id")))
-        .subcommand(Command::new("list-users"))
         .subcommand(
-            Command::new("list-locations")
-                .arg(Arg::new("user-id").long("user-id"))
+            Command::new("expire-logs")
+                .arg(Arg::new("max-lifetime").long("max-lifetime"))
                 .arg(Arg::new("max-count").long("max-count"))
                 .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
         )
-        .subcommand(Command::new("gen-priv-token").arg(Arg::new("user-id").long("user-id")))
+        .subcommand(
+            Command::new("create-log").arg(
+                Arg::new("no-token-url")
+                    .long("no-token-url")
+                    .action(ArgAction::SetTrue),
+            ),
+        )
+        .subcommand(
+            Command::new("add-to-log")
+                .arg(Arg::new("data").long("data"))
+                .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
+        )
+        .subcommand(
+            Command::new("delete-log").arg(Arg::new("log-id").long("log-id").required(true)),
+        )
+        .subcommand(Command::new("list-logs"))
+        .subcommand(
+            Command::new("list-locations")
+                .arg(Arg::new("log-id").long("log-id").required(true))
+                .arg(Arg::new("max-count").long("max-count").default_value("10"))
+                .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
+        )
+        .subcommand(Command::new("gen-priv-token").arg(Arg::new("log-id").long("log-id")))
         .subcommand(
             Command::new("set-unique-url")
-                .arg(Arg::new("url").long("url"))
-                .arg(Arg::new("user-id").long("user-id")),
+                .arg(Arg::new("url").long("url").required(true))
+                .arg(Arg::new("log-id").long("log-id").required(true)),
         )
         .get_matches();
 
     let sql_db = matches
         .get_one::<String>("sqlite-db")
-        .expect("can't be missing");
+        .ok_or("can't happen")?;
 
     let db = &mut establish_connection(sql_db);
     init(db).unwrap();
 
     match matches.subcommand() {
-        Some(("init", sub_matches)) => do_init(&sql_db, sub_matches),
-        Some(("expire", sub_matches)) => do_expire(&sql_db, sub_matches),
-        Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(&sql_db, sub_matches),
-        Some(("set-unique-url", sub_matches)) => do_set_unique_url(&sql_db, sub_matches),
-        Some(("create-user", sub_matches)) => do_create_user(&sql_db, sub_matches),
-        Some(("delete-user", sub_matches)) => do_delete_user(&sql_db, sub_matches),
-        Some(("list-users", sub_matches)) => do_list_users(&sql_db, sub_matches),
-        Some(("list-locations", sub_matches)) => do_list_locations(&sql_db, sub_matches),
+        Some(("init", sub_matches)) => do_init(sql_db, sub_matches),
+        Some(("expire-logs", sub_matches)) => do_expire_logs(sql_db, sub_matches),
+        Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(sql_db, sub_matches),
+        Some(("set-unique-url", sub_matches)) => do_set_unique_url(sql_db, sub_matches),
+        Some(("create-log", sub_matches)) => do_create_log(sql_db, sub_matches),
+        Some(("delete-log", sub_matches)) => do_delete_log(sql_db, sub_matches),
+        Some(("list-logs", sub_matches)) => do_list_logs(sql_db, sub_matches),
+        Some(("list-locations", sub_matches)) => do_list_locations(sql_db, sub_matches),
+        Some(("add-to-log", sub_matches)) => do_add_to_log(sql_db, sub_matches),
+
         _ => println!("Wooops"),
     }
+
+    Ok(())
 }

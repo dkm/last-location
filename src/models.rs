@@ -1,51 +1,51 @@
-use crate::schema::{
-    info::{self, accuracy},
-    info_sec, users,
-};
+use crate::schema::{info, info_sec, logs};
 use hex;
 use std::fmt;
 
 use diesel::prelude::*;
 
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
-#[diesel(table_name = users)]
+#[diesel(table_name = logs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct UserInfo {
+pub struct LogInfo {
     pub id: i32,
-    pub name: Option<String>,
+    //pub name: Option<String>,
     pub priv_token: Option<String>,
     pub unique_url: Option<String>,
+    pub last_activity: Option<i32>,
 }
 
-impl fmt::Display for UserInfo {
+impl fmt::Display for LogInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "id: {}, name: {}, priv_token: {}, unique_url: {}",
+            "id: {}, priv_token: {}, unique_url: {}, last-activity: {}",
             self.id,
             // FIXME this is ugly.
-            self.name.clone().map_or("None".to_string(), |v| v.clone()),
+            //            self.name.clone().map_or("None".to_string(), |v| v.clone()),
             self.priv_token
                 .clone()
                 .map_or("None".to_string(), |v| v.clone()),
             self.unique_url
                 .clone()
                 .map_or("None".to_string(), |v| v.clone()),
+            self.last_activity
+                .map_or("None".to_string(), |v| format!("{}", v.clone())),
         )
     }
 }
 
-#[derive(Insertable, serde::Deserialize, Clone, Debug)]
-#[diesel(table_name = users)]
-pub struct NewUser {
-    pub name: Option<String>,
-}
+// #[derive(Insertable, serde::Deserialize, Clone, Debug)]
+// #[diesel(table_name = logs)]
+// pub struct NewUser {
+//     pub name: Option<String>,
+// }
 
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
 #[diesel(table_name = info)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct UserLocationPoint {
-    pub user_id: i32,
+pub struct LogLocationPoint {
+    pub log_id: i32,
     pub id: i32,
 
     // See you in 2038...
@@ -64,7 +64,7 @@ pub struct UserLocationPoint {
     pub battery: Option<f64>,
 }
 
-impl fmt::Display for UserLocationPoint {
+impl fmt::Display for LogLocationPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let alt = if let Some(a) = self.altitude {
             format!("{}", a)
@@ -87,7 +87,7 @@ impl fmt::Display for UserLocationPoint {
             "None".to_string()
         };
         let prov = if let Some(a) = self.loc_provider.as_ref() {
-            format!("{}", a)
+            a.to_string()
         } else {
             "None".to_string()
         };
@@ -110,8 +110,8 @@ impl fmt::Display for UserLocationPoint {
 #[derive(Queryable, Selectable, Clone, serde::Serialize, serde::Deserialize, Debug)]
 #[diesel(table_name = info_sec)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct UserLocationPointSec {
-    pub user_id: i32,
+pub struct LogLocationPointSec {
+    pub log_id: i32,
     pub id: i32,
 
     // See you in 2038...
@@ -119,7 +119,7 @@ pub struct UserLocationPointSec {
     pub data: Vec<u8>,
 }
 
-impl fmt::Display for UserLocationPointSec {
+impl fmt::Display for LogLocationPointSec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -133,7 +133,7 @@ impl fmt::Display for UserLocationPointSec {
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = info)]
 pub struct NewInfo {
-    pub user_id: i32,
+    pub log_id: i32,
 
     pub device_timestamp: i32,
     pub server_timestamp: Option<i32>,
@@ -154,8 +154,9 @@ pub struct NewInfo {
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = info_sec)]
 pub struct NewInfoSec {
-    pub user_id: i32,
+    pub log_id: i32,
 
     pub server_timestamp: Option<i32>,
+
     pub data: Vec<u8>,
 }

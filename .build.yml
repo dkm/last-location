@@ -5,6 +5,8 @@ arch: amd64
 packages:
   - build-essential
   - libsqlite3-dev
+  - pkgconf
+  - libssl-dev
 tasks:
   - setup: |
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -sSf | sh -s -- -y

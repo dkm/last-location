@@ -3,128 +3,126 @@ pub mod schema;
 
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
-use serde::Serialize;
+use std::{fs::File, io::BufReader};
+use word_generator::*;
 
-#[derive(Debug, Serialize)]
+#[derive(thiserror::Error, Debug)]
+#[error("Generic error message")]
 pub enum Error {
+    // Diesel error
+    DatabaseError(#[from] Box<dyn core::error::Error + Sync + Send>),
+    DatabaseError2(#[from] diesel::result::Error),
     NotFound,
-    UserNotFound,
+    LogNotFound,
     Undefined,
 }
 
-use diesel::{prelude::*, sql_query};
-use models::{NewInfo, NewInfoSec, UserInfo, UserLocationPoint};
+// we must manually implement serde::Serialize
+impl serde::Serialize for Error {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_ref())
+    }
+}
 
-use crate::models::{NewUser, UserLocationPointSec};
+use diesel::{prelude::*, sql_query};
+use models::{LogInfo, LogLocationPoint, NewInfo, NewInfoSec};
+
+use crate::models::LogLocationPointSec;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
+/// Initialize the DBMS. For SQLite, it enable the `PRAGMA foreign_keys`.
 pub fn init(db: &mut SqliteConnection) -> Result<(), Error> {
-    match sql_query("PRAGMA foreign_keys = ON").execute(db) {
-        Ok(_) => Ok(()),
-        Err(_) => Err(Error::Undefined),
-    }
+    sql_query("PRAGMA foreign_keys = ON").execute(db)?;
+    Ok(())
 }
 
+/// Run the migrations from the 'migrations/' directory
 pub fn run_migrations(db: &mut SqliteConnection) -> Result<(), Error> {
-    // FIXME
-    match db.run_pending_migrations(MIGRATIONS) {
-        Ok(_) => Ok(()),
-        Err(_) => Err(Error::Undefined),
-    }
+    db.run_pending_migrations(MIGRATIONS)?;
+    Ok(())
 }
 
-pub fn set_unique_url(
-    db: &mut SqliteConnection,
-    user_id: i32,
-    uniq_url: &str,
-) -> Result<(), Error> {
-    use schema::users::dsl::*;
+/// Sets the unique URL for a given log.
+pub fn set_unique_url(db: &mut SqliteConnection, log_id: i32, uniq_url: &str) -> Result<(), Error> {
+    use schema::logs::dsl::*;
 
-    let r = diesel::update(users)
-        .filter(id.eq(user_id))
+    let r = diesel::update(logs)
+        .filter(id.eq(log_id))
         .set(unique_url.eq(uniq_url))
         .execute(db);
     match r {
         Ok(1) => Ok(()),
-        Ok(0) => Err(Error::UserNotFound),
-        Ok(_) | Err(_) => Err(Error::Undefined),
+        Ok(0) => Err(Error::LogNotFound),
+        Ok(_) => Err(Error::Undefined),
+        Err(e) => Err(e.into()),
     }
 }
 
-pub fn get_all_users(db: &mut SqliteConnection) -> Option<Vec<UserInfo>> {
-    use schema::users::dsl::*;
+/// Generates a random URL and sets it as the unique URL for a given log.
+pub fn generate_random_url(db: &mut SqliteConnection, log_id: i32) -> Result<(), Error> {
+    // 50 tries. If that doesn't work, maybe it's time to exit...
+    for _ in 1..50 {
+        let reader = BufReader::new(File::open("list").unwrap()); // using your language
+                                                                  // let reader = BufReader::new(langs::FR_TXT);
+        let suffix: u8 = rand::random::<u8>() % 100;
 
-    let user = users.select(UserInfo::as_select()).load(db);
-    match user {
-        Ok(ui) => Some(ui),
-        Err(_) => None,
-    }
-}
+        let maybe_url = format!(
+            "{}{}",
+            generate_words(reader, 3, 1).expect("Error generating word")[0],
+            suffix
+        );
 
-pub fn get_user_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<UserInfo> {
-    use schema::users::dsl::*;
-
-    let user = users
-        .filter(unique_url.eq(uniq_url))
-        .select(UserInfo::as_select())
-        .load(db);
-
-    match user {
-        Ok(mut ui) => {
-            if ui.len() == 1 {
-                ui.pop()
-            } else {
-                None
-            }
+        if set_unique_url(db, log_id, &maybe_url).is_ok() {
+            return Ok(());
         }
-        Err(_) => None,
     }
+    Err(Error::Undefined)
 }
 
-pub fn get_user_from_id(db: &mut SqliteConnection, uid: i32) -> Option<UserInfo> {
-    use schema::users::dsl::*;
-
-    let user = users
-        .filter(id.eq(uid))
-        .select(UserInfo::as_select())
-        .load(db);
-
-    match user {
-        Ok(mut ui) => {
-            if ui.len() == 1 {
-                ui.pop()
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    }
+/// Gets all the active logs.
+pub fn get_all_logs(db: &mut SqliteConnection) -> Option<Vec<LogInfo>> {
+    use schema::logs::dsl::*;
+    logs.select(LogInfo::as_select()).load(db).ok()
 }
 
-pub fn get_user_from_token(db: &mut SqliteConnection, token: &str) -> Option<UserInfo> {
-    use schema::users::dsl::*;
+/// Gets a log from its URL
+pub fn get_log_from_url(db: &mut SqliteConnection, uniq_url: &str) -> Option<LogInfo> {
+    use schema::logs::dsl::*;
 
-    let user = users
-        .filter(priv_token.eq(token))
-        .select(UserInfo::as_select())
-        .load(db);
-
-    match user {
-        Ok(mut ui) => {
-            if ui.len() == 1 {
-                ui.pop()
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    }
+    logs.filter(unique_url.eq(uniq_url))
+        .select(LogInfo::as_select())
+        .load(db)
+        .map_or(None, |mut l| if l.len() == 1 { l.pop() } else { None })
 }
 
-pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<String, Error> {
-    use schema::users::dsl::*;
+/// Gets a log from its id.
+pub fn get_log_from_id(db: &mut SqliteConnection, uid: i32) -> Option<LogInfo> {
+    use schema::logs::dsl::*;
+
+    logs.filter(id.eq(uid))
+        .select(LogInfo::as_select())
+        .load(db)
+        .map_or(None, |mut l| if l.len() == 1 { l.pop() } else { None })
+}
+
+/// Gets a log from its private token.
+pub fn get_log_from_token(db: &mut SqliteConnection, token: &str) -> Option<LogInfo> {
+    use schema::logs::dsl::*;
+
+    logs.filter(priv_token.eq(token))
+        .select(LogInfo::as_select())
+        .load(db)
+        .map_or(None, |mut l| if l.len() == 1 { l.pop() } else { None })
+}
+
+/// Generates a private token and sets it for the given log.
+pub fn generate_log_token(db: &mut SqliteConnection, log_id: i32) -> Result<String, Error> {
+    use schema::logs::dsl::*;
 
     let s: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -132,60 +130,76 @@ pub fn generate_user_token(db: &mut SqliteConnection, user_id: i32) -> Result<St
         .map(char::from)
         .collect();
 
-    let r = diesel::update(users)
-        .filter(id.eq(user_id))
+    let r = diesel::update(logs)
+        .filter(id.eq(log_id))
         .set(priv_token.eq(&s))
         .execute(db);
 
     match r {
         Ok(1) => Ok(s),
-        Ok(0) => Err(Error::UserNotFound),
-        Ok(_) | Err(_) => Err(Error::Undefined),
+        Ok(0) => Err(Error::LogNotFound),
+        Ok(_) => Err(Error::Undefined),
+        Err(e) => Err(e.into()),
     }
 }
 
-pub fn create_user(db: &mut SqliteConnection, name: &str) -> Result<UserInfo, Error> {
-    use schema::users;
-    let new_user = NewUser {
-        name: Some(String::from(name)),
-    };
+/// Generates a new log.
+/// The resulting log has its unique URL and private token set.
+pub fn generate_new_log(
+    db: &mut SqliteConnection,
+    with_token_and_url: bool,
+) -> Result<LogInfo, Error> {
+    use schema::logs;
 
-    let res = diesel::insert_into(users::table)
-        .values(&new_user)
-        .returning(UserInfo::as_returning())
+    let res = diesel::insert_into(logs::table)
+        .default_values()
+        .returning(LogInfo::as_returning())
         .get_result(db);
 
-    match res {
-        Ok(nu) => Ok(nu),
-        Err(_) => Err(Error::Undefined),
+    let Ok(new_log) = res else {
+        return Err(Error::Undefined);
+    };
+
+    if with_token_and_url {
+        if generate_log_token(db, new_log.id).is_err() {
+            return Err(Error::Undefined);
+        }
+
+        if generate_random_url(db, new_log.id).is_err() {
+            return Err(Error::Undefined);
+        }
     }
+
+    Ok(new_log)
 }
 
-pub fn delete_user(db: &mut SqliteConnection, user_id: i32) -> Result<(), Error> {
-    use schema::users;
-    use schema::users::dsl::*;
+/// Deletes the given log.
+pub fn delete_log(db: &mut SqliteConnection, log_id: i32) -> Result<(), Error> {
+    use schema::logs;
+    use schema::logs::dsl::*;
 
-    let res = diesel::delete(users::table)
-        .filter(id.eq(user_id))
+    let log = diesel::delete(logs::table)
+        .filter(id.eq(log_id))
         .execute(db);
 
-    match res {
+    match log {
         Ok(1) => Ok(()),
-        Ok(0) => Err(Error::UserNotFound),
+        Ok(0) => Err(Error::LogNotFound),
         Ok(_) | Err(_) => Err(Error::Undefined),
     }
 }
 
-pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
-    use schema::users::dsl::*;
+/// Gets the given log.
+pub fn get_log(db: &mut SqliteConnection, log_id: i32) -> Option<LogInfo> {
+    use schema::logs::dsl::*;
 
-    let user = users
-        .filter(id.eq(user_id))
+    let log = logs
+        .filter(id.eq(log_id))
         .limit(1)
-        .select(UserInfo::as_select())
+        .select(LogInfo::as_select())
         .load(db);
 
-    match user {
+    match log {
         Ok(mut ui) => {
             if ui.len() == 1 {
                 ui.pop()
@@ -197,38 +211,78 @@ pub fn get_user(db: &mut SqliteConnection, user_id: i32) -> Option<UserInfo> {
     }
 }
 
-pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<UserLocationPoint, Error> {
+/// Sets the last activity timestamp for a given log.
+pub fn set_last_activity(
+    db: &mut SqliteConnection,
+    log_id: i32,
+    timestamp: i32,
+) -> Result<(), Error> {
+    use schema::logs::dsl::*;
+
+    let res = diesel::update(logs)
+        .filter(id.eq(log_id))
+        .set(last_activity.eq(timestamp))
+        .execute(db);
+
+    if res.is_err() {
+        return Err(Error::Undefined);
+    }
+
+    Ok(())
+}
+
+/// Appends a new location.
+pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<LogLocationPoint, Error> {
     use schema::info;
 
-    get_user(db, new_info.user_id).ok_or(Error::NotFound)?;
+    get_log(db, new_info.log_id).ok_or(Error::NotFound)?;
 
     let res = diesel::insert_into(info::table)
         .values(&new_info)
-        .returning(UserLocationPoint::as_returning())
+        .returning(LogLocationPoint::as_returning())
         .get_result(db);
 
-    match res {
-        Ok(ulp) => Ok(ulp),
-        Err(_) => Err(Error::Undefined),
+    let ulp = match res {
+        Ok(lp) => lp,
+        Err(_) => return Err(Error::Undefined),
+    };
+
+    if let Some(ts) = new_info.server_timestamp {
+        if set_last_activity(db, new_info.log_id, ts).is_err() {
+            return Err(Error::Undefined);
+        }
     }
+
+    Ok(ulp)
 }
 
+/// Appends a new encrypted location.
 pub fn add_info_sec(db: &mut SqliteConnection, new_info: NewInfoSec) -> Result<(), Error> {
     use schema::info_sec;
 
-    get_user(db, new_info.user_id).ok_or(Error::NotFound)?;
+    get_log(db, new_info.log_id).ok_or(Error::NotFound)?;
 
     let res = diesel::insert_into(info_sec::table)
         .values(&new_info)
         .execute(db);
 
-    match res {
-        Ok(ulp) => Ok(()),
-        Err(_) => Err(Error::Undefined),
+    if res.is_err() {
+        return Err(Error::Undefined);
     }
+
+    if let Some(ts) = new_info.server_timestamp {
+        if set_last_activity(db, new_info.log_id, ts).is_err() {
+            return Err(Error::Undefined);
+        }
+    }
+
+    Ok(())
 }
 
-fn filter_last_info(values: Vec<UserLocationPoint>, time_gap_secs: i32) -> Vec<UserLocationPoint> {
+/// Filters the given locations to keep only the last meaningful locations. The
+/// definition of "meaningful" is what makes this function important (and
+/// currently, it's very naive).
+fn filter_last_info(values: Vec<LogLocationPoint>, time_gap_secs: i32) -> Vec<LogLocationPoint> {
     let mut prev = 0;
     let mut cut = false;
 
@@ -256,10 +310,14 @@ fn filter_last_info(values: Vec<UserLocationPoint>, time_gap_secs: i32) -> Vec<U
         .collect()
 }
 
+/// Filters the given locations to keep only the last meaningful locations.
+///
+/// The locations being encrypted, there's no way for the server to define any
+/// "meaningful" way of splitting. Maybe by looking at server timestamps?
 fn filter_last_info_sec(
-    values: Vec<UserLocationPointSec>,
+    values: Vec<LogLocationPointSec>,
     time_gap_secs: i32,
-) -> Vec<UserLocationPointSec> {
+) -> Vec<LogLocationPointSec> {
     let mut prev = 0;
     let mut cut = false;
 
@@ -287,18 +345,24 @@ fn filter_last_info_sec(
         .collect()
 }
 
+/// Gets the last locations for a given log.
+///
+/// The `cut_last_segment` can be set to true to only keep the last segment.
 pub fn get_last_info(
     db: &mut SqliteConnection,
     uid: i32,
     count: i64,
     cut_last_segment: bool,
-) -> Option<Vec<UserLocationPoint>> {
+) -> Option<Vec<LogLocationPoint>> {
     use schema::info::dsl::*;
 
     let last_pos = info
-        .filter(user_id.eq(uid))
+        .filter(log_id.eq(uid))
         .limit(count)
-        .select(UserLocationPoint::as_select())
+        .select(LogLocationPoint::as_select())
+        // FIXME: this returns the last locations received by the server. If the
+        // client sends locations in incorrect order (i.e. more recent first,
+        // then some old), this may return unexpected result.
         .order(id.desc())
         .load(db);
 
@@ -318,18 +382,21 @@ pub fn get_last_info(
     }
 }
 
+/// Gets the last locations for a given encrypted log.
+///
+/// The `cut_last_segment` is unused and will be removed.
 pub fn get_last_info_sec(
     db: &mut SqliteConnection,
     uid: i32,
     count: i64,
     cut_last_segment: bool,
-) -> Option<Vec<UserLocationPointSec>> {
+) -> Option<Vec<LogLocationPointSec>> {
     use schema::info_sec::dsl::*;
 
     let last_pos = info_sec
-        .filter(user_id.eq(uid))
+        .filter(log_id.eq(uid))
         .limit(count)
-        .select(UserLocationPointSec::as_select())
+        .select(LogLocationPointSec::as_select())
         .order(id.desc())
         .load(db);
 

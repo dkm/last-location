@@ -2,7 +2,7 @@
 use super::*;
 use ::axum_test::TestServer;
 use last_position::{
-    create_user, delete_user, generate_user_token, get_user, run_migrations, set_unique_url,
+    delete_log, generate_log_token, generate_new_log, get_log, run_migrations, set_unique_url,
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
@@ -32,23 +32,23 @@ async fn simple_location_post_get() {
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| create_user(conn, "sample_user"))
+        .interact(|conn| generate_new_log(conn, false))
         .await
         .unwrap();
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| generate_user_token(conn, 1i32))
+        .interact(|conn| generate_log_token(conn, 1i32))
         .await
         .unwrap();
     assert!(res.is_ok());
 
     let token = res.unwrap();
 
-    let res = conn.interact(|conn| get_user(conn, 1i32)).await.unwrap();
+    let res = conn.interact(|conn| get_log(conn, 1i32)).await.unwrap();
     assert!(res.is_some());
 
-    let res = conn.interact(|conn| get_user(conn, 2i32)).await.unwrap();
+    let res = conn.interact(|conn| get_log(conn, 2i32)).await.unwrap();
     assert!(res.is_none());
 
     let app = app(pool).await;
@@ -80,9 +80,9 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, 1);
     assert_eq!(json_res[0].lat, 32.0f64);
     assert_eq!(json_res[0].lon, 22.0f64);
@@ -104,10 +104,10 @@ async fn simple_location_post_get() {
         .add_query_param("uid", "1")
         .await;
     response.assert_status_ok();
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
 
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, 2);
     assert_eq!(json_res[0].lat, 66.0f64);
     assert_eq!(json_res[0].lon, 77.0f64);
@@ -130,10 +130,10 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
 
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].user_id, 1);
+    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, 2);
     assert_eq!(json_res[0].lat, 66.0f64);
     assert_eq!(json_res[0].lon, 77.0f64);
@@ -174,9 +174,11 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
 
     assert_eq!(json_res.len(), 4);
+
+    fs::remove_file(&db_url).unwrap();
 }
 
 #[tokio::test]
@@ -196,23 +198,23 @@ async fn test_cut_last_segment_get() {
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| create_user(conn, "sample_user"))
+        .interact(|conn| generate_new_log(conn, false))
         .await
         .unwrap();
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| generate_user_token(conn, 1i32))
+        .interact(|conn| generate_log_token(conn, 1i32))
         .await
         .unwrap();
     assert!(res.is_ok());
 
     let token = res.unwrap();
 
-    let res = conn.interact(|conn| get_user(conn, 1i32)).await.unwrap();
+    let res = conn.interact(|conn| get_log(conn, 1i32)).await.unwrap();
     assert!(res.is_some());
 
-    let res = conn.interact(|conn| get_user(conn, 2i32)).await.unwrap();
+    let res = conn.interact(|conn| get_log(conn, 2i32)).await.unwrap();
     assert!(res.is_none());
 
     let app = app(pool).await;
@@ -261,7 +263,7 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
     assert_eq!(json_res.len(), 20);
 
     // Requesting 30 values without filtering out anything.
@@ -273,7 +275,7 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
     assert_eq!(json_res.len(), 30);
 
     // Requestingr 50 values without filtering out anything.
@@ -285,13 +287,14 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<UserLocationPoint>>();
+    let json_res = response.json::<Vec<LogLocationPoint>>();
     assert_eq!(json_res.len(), 30);
+    fs::remove_file(&db_url).unwrap();
 }
 
 #[tokio::test]
-async fn delete_user_test() {
-    let db_url = "delete_user.sqlite";
+async fn delete_log_test() {
+    let db_url = "delete_log.sqlite";
     if Path::new(&db_url).try_exists().unwrap() {
         fs::remove_file(&db_url).unwrap();
     }
@@ -306,29 +309,30 @@ async fn delete_user_test() {
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| create_user(conn, "sample_user"))
+        .interact(|conn| generate_new_log(conn, false))
         .await
         .unwrap();
     assert!(res.is_ok());
 
     let res = conn
-        .interact(|conn| create_user(conn, "sample_user2"))
+        .interact(|conn| generate_new_log(conn, false))
         .await
         .unwrap();
     assert!(res.is_ok());
 
-    let res = conn.interact(|conn| delete_user(conn, 1)).await.unwrap();
+    let res = conn.interact(|conn| delete_log(conn, 1)).await.unwrap();
     assert!(res.is_ok());
 
-    let res = conn.interact(|conn| delete_user(conn, 1)).await.unwrap();
+    let res = conn.interact(|conn| delete_log(conn, 1)).await.unwrap();
     assert!(res.is_err());
 
-    let res = conn.interact(|conn| delete_user(conn, 3)).await.unwrap();
+    let res = conn.interact(|conn| delete_log(conn, 3)).await.unwrap();
     assert!(res.is_err());
 
-    let res = conn.interact(|conn| delete_user(conn, 2)).await.unwrap();
+    let res = conn.interact(|conn| delete_log(conn, 2)).await.unwrap();
     assert!(res.is_ok());
 
-    let res = conn.interact(|conn| delete_user(conn, 2)).await.unwrap();
+    let res = conn.interact(|conn| delete_log(conn, 2)).await.unwrap();
     assert!(res.is_err());
+    fs::remove_file(&db_url).unwrap();
 }
