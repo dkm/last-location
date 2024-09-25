@@ -3,6 +3,7 @@ use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use last_position::{
     add_info, add_info_sec, delete_log, generate_log_token, generate_new_log, get_all_logs, init,
@@ -75,40 +76,47 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
         .expect("Not an i32");
     let secure = matches.get_flag("secure");
 
-    // let _limit_lifetime = matches
-    //     .get_one::<String>("max-lifetime")
-    //     .unwrap()
-    //     .parse::<i32>()
-    //     .expect("Not an i32");
+    let limit_lifetime = matches
+        .get_one::<String>("max-lifetime")
+        .and_then(|v| Some(v.parse::<i32>().expect("not an i32")));
+
+    let cur_ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Can't get epoch")
+        .as_secs() as i32;
 
     let db = &mut establish_connection(db_url);
 
-    let all_logs = get_all_logs(db).expect(
-        "failed to get logs, FIXME error
-    handling",
-    );
+    let all_logs = get_all_logs(db).expect("failed to get logs, FIXME error handling");
 
     for log in all_logs {
         if !secure {
             use last_position::schema::info::dsl::*;
+
             let old_count = info
                 .filter(log_id.eq(log.id))
                 .count()
                 .first::<i64>(db)
                 .expect("Error counting existing log points");
 
-            if old_count < (limit_count as i64) {
-                continue;
-            }
+            let res = if let Some(limit_lt) = limit_lifetime {
+                let oldest_ts = cur_ts - limit_lt;
+                info.select(server_timestamp)
+                    .filter(log_id.eq(log.id).and(server_timestamp.ge(oldest_ts)))
+                    .order(server_timestamp.desc())
+                    .limit(limit_count as i64)
+                    .load::<i32>(db)
+                    .expect("can't load last entries to keep")
+            } else {
+                info.select(server_timestamp)
+                    .filter(log_id.eq(log.id))
+                    .order(server_timestamp.desc())
+                    .limit(limit_count as i64)
+                    .load::<i32>(db)
+                    .expect("can't load last entries to keep")
+            };
 
-            let to_keep = info
-                .select(server_timestamp)
-                .filter(log_id.eq(log.id))
-                .order(server_timestamp.desc())
-                .limit(limit_count as i64);
-
-            let res = to_keep.load::<i32>(db).expect("Can't load last records");
-            let ts_limit = res[(limit_count - 1) as usize];
+            let ts_limit = res[(res.len() - 1) as usize];
 
             let to_expire = info.filter(server_timestamp.lt(ts_limit));
 
