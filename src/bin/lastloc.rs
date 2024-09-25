@@ -2,13 +2,13 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use last_position::get_all_logs;
-use last_position::models::NewInfo;
-use last_position::models::NewInfoSec;
-use last_position::models::{LogLocationPoint, LogLocationPointSec};
-use last_position::run_migrations;
-use last_position::{add_info, add_info_sec};
-use last_position::{delete_log, generate_log_token, generate_new_log, init, set_unique_url};
+use std::fs;
+
+use last_position::{
+    add_info, add_info_sec, delete_log, generate_log_token, generate_new_log, get_all_logs, init,
+    models::{LogLocationPoint, LogLocationPointSec, NewInfo, NewInfoSec},
+    run_migrations, set_unique_url,
+};
 
 pub fn establish_connection(db_url: &str) -> SqliteConnection {
     //let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -207,9 +207,39 @@ fn do_add_to_log(db_url: &str, matches: &ArgMatches) {
     }
 }
 
+fn do_dump_logs(db_url: &str, matches: &ArgMatches) {
+    let db = &mut establish_connection(db_url);
+
+    let secure = matches.get_flag("secure");
+    let output_path = matches
+        .get_one::<String>("output")
+        .expect("can't be missing");
+
+    if !secure {
+        use last_position::schema::info::dsl::*;
+        let last_pos = info
+            .select(LogLocationPoint::as_select())
+            .order(server_timestamp.desc())
+            .load(db)
+            .expect("Error querying db");
+
+        fs::write(output_path, serde_json::to_string(&last_pos).unwrap())
+            .expect("Error writing to file");
+    } else {
+        use last_position::schema::info_sec::dsl::*;
+        let last_pos = info_sec
+            .select(LogLocationPointSec::as_select())
+            .order(id.desc())
+            .load(db)
+            .expect("Error querying db");
+        fs::write(output_path, serde_json::to_string(&last_pos).unwrap())
+            .expect("Error writing to file");
+    }
+}
+
 fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     let db = &mut establish_connection(db_url);
-    let uid = matches
+    let logid = matches
         .get_one::<String>("log-id")
         .unwrap()
         .parse::<i32>()
@@ -226,7 +256,7 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     if !secure {
         use last_position::schema::info::dsl::*;
         let last_pos = info
-            .filter(log_id.eq(uid))
+            .filter(log_id.eq(logid))
             .limit(limit_count)
             .select(LogLocationPoint::as_select())
             .order(server_timestamp.desc())
@@ -239,7 +269,7 @@ fn do_list_locations(db_url: &str, matches: &ArgMatches) {
     } else {
         use last_position::schema::info_sec::dsl::*;
         let last_pos = info_sec
-            .filter(log_id.eq(uid))
+            .filter(log_id.eq(logid))
             .limit(limit_count)
             .select(LogLocationPointSec::as_select())
             .order(id.desc())
@@ -282,6 +312,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
         )
         .subcommand(
+            Command::new("dump-logs")
+                .arg(Arg::new("output").long("output"))
+                .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
+        )
+        .subcommand(
             Command::new("delete-log").arg(Arg::new("log-id").long("log-id").required(true)),
         )
         .subcommand(Command::new("list-logs"))
@@ -316,6 +351,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(("list-logs", sub_matches)) => do_list_logs(sql_db, sub_matches),
         Some(("list-locations", sub_matches)) => do_list_locations(sql_db, sub_matches),
         Some(("add-to-log", sub_matches)) => do_add_to_log(sql_db, sub_matches),
+        Some(("dump-logs", sub_matches)) => do_dump_logs(sql_db, sub_matches),
 
         _ => println!("Wooops"),
     }
