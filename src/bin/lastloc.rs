@@ -1,7 +1,7 @@
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use diesel::debug_query;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use std::env;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -68,6 +68,19 @@ fn do_set_unique_url(db_url: &str, matches: &ArgMatches) {
     set_unique_url(db, log_id, url).expect("Error setting url");
 }
 
+// During testing, server timestamp can be forced to specific value.
+fn get_time() -> i32 {
+    if let Ok(v) = env::var("LASTLOC_MOCK_SERVER_TIME") {
+        println!("Mock time {}", v.parse::<i32>().expect("Not an i32"));
+        v.parse::<i32>().expect("Not an i32")
+    } else {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Can't get epoch")
+            .as_secs() as i32
+    }
+}
+
 fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
     let limit_count = matches
         .get_one::<String>("max-count")
@@ -80,10 +93,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
         .get_one::<String>("max-lifetime")
         .and_then(|v| Some(v.parse::<i32>().expect("not an i32")));
 
-    let cur_ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Can't get epoch")
-        .as_secs() as i32;
+    let cur_ts = get_time();
 
     let db = &mut establish_connection(db_url);
 
@@ -101,6 +111,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let res = if let Some(limit_lt) = limit_lifetime {
                 let oldest_ts = cur_ts - limit_lt;
+                println!("oldest {}", oldest_ts);
                 info.select(server_timestamp)
                     .filter(log_id.eq(log.id).and(server_timestamp.ge(oldest_ts)))
                     .order(server_timestamp.desc())
@@ -116,31 +127,35 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
                     .expect("can't load last entries to keep")
             };
 
+            if res.is_empty() {
+                return;
+            }
+
             let ts_limit = res[(res.len() - 1) as usize];
 
             let to_expire = info.filter(server_timestamp.lt(ts_limit));
 
-            let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            // Keeping this for future "--verbose"
+            // let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            // println!("SQL: {}", sql);
+
             let expire_count = to_expire
                 .count()
                 .first::<i64>(db)
                 .expect("Error counting rows to expire");
 
-            println!("SQL: {}", sql);
             println!(
-                "Log: {}, all count: {}, to expire: {}",
+                "Log: {}, pre-count: {}, to expire: {}",
                 log.id, old_count, expire_count
             );
 
             let _ = diesel::delete(to_expire).execute(db);
 
-            let new_count = info
-                .filter(log_id.eq(log.id))
-                .count()
-                .first::<i64>(db)
-                .expect("Error counting existing measures");
-
-            println!("Log: {}, new count: {}", log.id, new_count);
+            // let new_count = info
+            //     .filter(log_id.eq(log.id))
+            //     .count()
+            //     .first::<i64>(db)
+            //     .expect("Error counting existing measures");
         } else {
             use last_position::schema::info_sec::dsl::*;
             let old_count = info_sec
@@ -160,31 +175,33 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
                 .limit(limit_count as i64);
 
             let res = to_keep.load::<i32>(db).expect("Can't load last records");
+            if res.is_empty() {
+                return;
+            }
+
             let ts_limit = res[(limit_count - 1) as usize];
 
             let to_expire = info_sec.filter(server_timestamp.lt(ts_limit));
 
-            let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            // let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
+            // println!("SQL: {}", sql);
+
             let expire_count = to_expire
                 .count()
                 .first::<i64>(db)
                 .expect("Error counting rows to expire");
-
-            println!("SQL: {}", sql);
             println!(
-                "Log: {}, all count: {}, to expire: {}",
+                "Log: {}, pre-count: {}, to expire: {}",
                 log.id, old_count, expire_count
             );
 
             let _ = diesel::delete(to_expire).execute(db);
 
-            let new_count = info_sec
-                .filter(log_id.eq(log.id))
-                .count()
-                .first::<i64>(db)
-                .expect("Error counting existing measures");
-
-            println!("Log: {}, new count: {}", log.id, new_count);
+            // let new_count = info_sec
+            //     .filter(log_id.eq(log.id))
+            //     .count()
+            //     .first::<i64>(db)
+            //     .expect("Error counting existing measures");
         }
     }
 }
