@@ -151,6 +151,34 @@ pub struct NewInfo {
     pub battery: Option<f64>,
 }
 
+impl NewInfo {
+    pub fn is_valid(&self) -> bool {
+        // This make the testing harder for a probable very little added value.
+        //
+        // if let Some(server_ts) = &self.server_timestamp {
+        //     if (self.device_timestamp - server_ts).abs() > 24 * 3600 {
+        //         return false;
+        //     }
+        // }
+
+        if self.lat < -90f64 || self.lat > 90f64 {
+            return false;
+        }
+
+        if self.lon < -180f64 || self.lon > 180f64 {
+            return false;
+        }
+
+        if let Some(alt) = &self.altitude {
+            if *alt < -500f64 || *alt > 10000f64 {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
 #[derive(Insertable, serde::Deserialize, Clone, Debug)]
 #[diesel(table_name = info_sec)]
 pub struct NewInfoSec {

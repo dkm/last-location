@@ -319,7 +319,7 @@ async fn set_last_location(
         .map_err(internal_error)?;
 
     match res {
-        Err(_) => Err((StatusCode::NOT_FOUND, "No match".to_string())),
+        Err(_) => Err((StatusCode::BAD_REQUEST, "Incorrect data".to_string())),
         Ok(r) => Ok(Json(r)),
     }
 }

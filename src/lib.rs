@@ -235,6 +235,10 @@ pub fn set_last_activity(
 pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<LogLocationPoint, Error> {
     use schema::info;
 
+    if !new_info.is_valid() {
+        return Err(Error::Undefined);
+    }
+
     get_log(db, new_info.log_id).ok_or(Error::NotFound)?;
 
     let res = diesel::insert_into(info::table)
