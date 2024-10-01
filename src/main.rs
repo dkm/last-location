@@ -17,7 +17,7 @@ use last_position::{
 
 use tower_http::services::ServeDir;
 
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{event, Level};
 
@@ -324,29 +324,28 @@ async fn set_last_location(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct SetLastLocSecParams {
     // this is the only diff with NewInfo
     pub priv_token: String,
-    pub server_timestamp: Option<i32>,
     pub data: String,
 }
 
 impl SetLastLocSecParams {
     pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfoSec> {
-        let uinfo = get_log_from_token(db, &self.priv_token);
-
-        // FIXME
-        let byte_data = hex::decode(self.data.clone()).unwrap();
-
-        match uinfo {
-            Some(uinfo) => Some(NewInfoSec {
-                log_id: uinfo.id,
-                server_timestamp: self.server_timestamp,
-                data: byte_data,
-            }),
-            None => None,
+        if let Ok(byte_data) = hex::decode(&self.data) {
+            if let Some(uinfo) =  get_log_from_token(db, &self.priv_token){
+                Some(NewInfoSec {
+                    log_id: uinfo.id,
+                    server_timestamp: None,
+                    data: byte_data,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }

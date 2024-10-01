@@ -2,8 +2,7 @@
 use super::*;
 use ::axum_test::TestServer;
 use last_position::{
-    delete_log, generate_log_token, generate_new_log, get_log, run_migrations,
-    set_unique_url,
+    delete_log, generate_log_token, generate_new_log, get_log, run_migrations, set_unique_url,
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
