@@ -504,3 +504,153 @@ async fn delete_log_test() {
     let res = conn.interact(|conn| delete_log(conn, 2)).await.unwrap();
     assert!(res.is_err());
 }
+
+#[tokio::test]
+async fn simple_location_post_get_sec() {
+    let test_db = TestData::new("simple_location_post_get_sec.sqlite");
+
+    let manager = Manager::new(test_db.db_file_name, deadpool_diesel::Runtime::Tokio1);
+    let pool = deadpool_diesel::sqlite::Pool::builder(manager)
+        .build()
+        .unwrap();
+
+    let conn = pool.get().await.unwrap();
+    let res = conn.interact(|conn| run_migrations(conn)).await;
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| generate_new_log(conn, false))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let res = conn
+        .interact(|conn| generate_log_token(conn, 1i32))
+        .await
+        .unwrap();
+    assert!(res.is_ok());
+
+    let token = res.unwrap();
+
+    let res = conn.interact(|conn| get_log(conn, 1i32)).await.unwrap();
+    assert!(res.is_some());
+
+    let app = app(pool).await;
+
+    let server = TestServer::new(app).unwrap();
+
+    // no data yet
+    let response = server
+        .get("/api/s/get_last_location")
+        .add_query_param("uid", "1")
+        .await;
+    response.assert_status_not_found();
+
+    // get/set single/only data
+    let response = server
+        .post(&"/api/s/set_last_location")
+        .form(&SetLastLocSecParams {
+            priv_token: token.clone(),
+            data: "abcdef".to_string(),
+        })
+        .await;
+    response.assert_status_ok();
+
+    let response = server
+        .get("/api/s/get_last_location")
+        .add_query_param("uid", "1")
+        .await;
+    response.assert_status_ok();
+
+    let json_res = response.json::<Vec<LogLocationPointSec>>();
+    assert_eq!(json_res.len(), 1);
+    assert_eq!(json_res[0].log_id, 1);
+    assert_eq!(json_res[0].data.len(), 3usize);
+
+    let response = server
+        .post(&"/api/s/set_last_location")
+        .form(&SetLastLocSecParams {
+            priv_token: token.clone(),
+            data: "ab".to_string().repeat(400usize),
+        })
+        .await;
+    response.assert_status_ok();
+
+    let response = server
+        .post(&"/api/s/set_last_location")
+        .form(&SetLastLocSecParams {
+            priv_token: token.clone(),
+            data: "ab".to_string().repeat(401usize),
+        })
+        .await;
+    response.assert_status_not_ok();
+
+    // let response = server
+    //     .get("/api/get_last_location")
+    //     .add_query_param("uid", "1")
+    //     .await;
+    // response.assert_status_ok();
+    // let json_res = response.json::<Vec<LogLocationPoint>>();
+
+    // assert_eq!(json_res.len(), 1);
+    // assert_eq!(json_res[0].log_id, 1);
+    // assert_eq!(json_res[0].device_timestamp, curr_time + 2);
+    // assert_eq!(json_res[0].lat, 66.0f64);
+    // assert_eq!(json_res[0].lon, 77.0f64);
+
+    // let response = server
+    //     .get("/api/get_last_location")
+    //     .add_query_param("url", "something_something")
+    //     .await;
+    // response.assert_status_not_found();
+
+    // let res = conn
+    //     .interact(|conn| set_unique_url(conn, 1i32, "something_something"))
+    //     .await
+    //     .unwrap();
+    // assert!(res.is_ok());
+
+    // let response = server
+    //     .get("/api/get_last_location")
+    //     .add_query_param("url", "something_something")
+    //     .await;
+    // response.assert_status_ok();
+
+    // let json_res = response.json::<Vec<LogLocationPoint>>();
+
+    // assert_eq!(json_res.len(), 1);
+    // assert_eq!(json_res[0].log_id, 1);
+    // assert_eq!(json_res[0].device_timestamp, curr_time + 2);
+    // assert_eq!(json_res[0].lat, 66.0f64);
+    // assert_eq!(json_res[0].lon, 77.0f64);
+
+    // let res = conn
+    //     .interact(|conn| set_unique_url(conn, 1i32, "something_something"))
+    //     .await
+    //     .unwrap();
+    // assert!(res.is_ok());
+
+    // // get set latest data
+    // let response = server
+    //     .post(&"/api/set_last_location")
+    //     .form(&TestForm::new(&token, curr_time + 3i32, 88.0f64, 99.0f64))
+    //     .await;
+    // response.assert_status_ok();
+    // // get set latest data
+    // let response = server
+    //     .post(&"/api/set_last_location")
+    //     .form(&TestForm::new(&token, curr_time + 4i32, 11.0f64, 22.0f64))
+    //     .await;
+    // response.assert_status_ok();
+
+    // let response = server
+    //     .get("/api/get_last_location")
+    //     .add_query_param("url", "something_something")
+    //     .add_query_param("count", "10")
+    //     .await;
+    // response.assert_status_ok();
+
+    // let json_res = response.json::<Vec<LogLocationPoint>>();
+
+    // assert_eq!(json_res.len(), 4);
+}

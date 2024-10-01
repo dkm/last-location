@@ -264,6 +264,12 @@ pub fn add_info(db: &mut SqliteConnection, new_info: NewInfo) -> Result<LogLocat
 pub fn add_info_sec(db: &mut SqliteConnection, new_info: NewInfoSec) -> Result<(), Error> {
     use schema::info_sec;
 
+    // a regular clear text record would be around 200 bytee, so rounding it up
+    // a bit to 400 to filter our any ill formed payload.
+    if new_info.data.len() > 400usize {
+        return Err(Error::Undefined);
+    }
+
     get_log(db, new_info.log_id).ok_or(Error::NotFound)?;
 
     let res = diesel::insert_into(info_sec::table)
