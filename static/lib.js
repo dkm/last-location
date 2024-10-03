@@ -186,6 +186,9 @@ async function load_last_position_sec(uniq_url) {
 
     var decoder = new TextDecoder("utf-8");
     var dec_json = JSON.parse(decoder.decode(plain_text_deciphered));
+    dec_json.server_timestamp = res_json[u].server_timestamp;
+    dec_json.log_id = res_json[u].log_id;
+    dec_json.id = res_json[u].id;
     all_res.push(dec_json);
   }
   display_positions(all_res);
