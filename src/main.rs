@@ -8,10 +8,15 @@ use axum::{
     routing::{get, post},
     Form, Router,
 };
+
+mod apitypes;
+
+use apitypes::{APILogInfo, APILogLocationPoint, APILogLocationPointSec};
+
 use diesel::SqliteConnection;
 use last_position::{
     get_log_from_token, init,
-    models::{LogInfo, LogLocationPoint, LogLocationPointSec, NewInfo, NewInfoSec},
+    models::{LogLocationPoint, NewInfo, NewInfoSec},
     run_migrations,
 };
 
@@ -103,7 +108,7 @@ async fn get_stable_infopage(
 async fn generate_log_id(
     State(s): State<S>,
     //    Form(params): Form<GenerateNewLogIdParams>,
-) -> Result<Json<LogInfo>, (StatusCode, String)> {
+) -> Result<Json<APILogInfo>, (StatusCode, String)> {
     event!(Level::TRACE, "generate_log_id");
 
     let conn = s.pool.get().await.map_err(internal_error)?;
@@ -121,7 +126,7 @@ async fn generate_log_id(
             .unwrap();
 
         event!(Level::TRACE, " get log again  {} ", r);
-        return Ok(Json(r));
+        return Ok(Json(r.into()));
     }
     Err((StatusCode::NOT_FOUND, "No match".to_string()))
 }
@@ -143,7 +148,7 @@ struct GetLastLocParams {
 async fn get_last_location_secure(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
-) -> Result<Json<Vec<LogLocationPointSec>>, (StatusCode, String)> {
+) -> Result<Json<Vec<APILogLocationPointSec>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     if params.uid.is_some() && params.url.is_some()
@@ -185,7 +190,7 @@ async fn get_last_location_secure(
         .map_err(internal_error)?;
 
     if let Some(r) = res {
-        Ok(Json(r))
+        Ok(Json(r.into_iter().map(|x| x.into()).collect()))
     } else {
         Err((StatusCode::NOT_FOUND, "No match".to_string()))
     }
@@ -194,7 +199,7 @@ async fn get_last_location_secure(
 async fn get_last_location(
     Query(params): Query<GetLastLocParams>,
     State(s): State<S>,
-) -> Result<Json<Vec<LogLocationPoint>>, (StatusCode, String)> {
+) -> Result<Json<Vec<APILogLocationPoint>>, (StatusCode, String)> {
     let conn = s.pool.get().await.map_err(internal_error)?;
 
     if params.uid.is_some() && params.url.is_some()
@@ -236,7 +241,7 @@ async fn get_last_location(
         .map_err(internal_error)?;
 
     if let Some(r) = res {
-        Ok(Json(r))
+        Ok(Json(r.into_iter().map(|x| x.into()).collect()))
     } else {
         Err((StatusCode::NOT_FOUND, "No match".to_string()))
     }
@@ -335,7 +340,7 @@ pub struct SetLastLocSecParams {
 impl SetLastLocSecParams {
     pub fn to_newinfo(&self, db: &mut SqliteConnection) -> Option<NewInfoSec> {
         if let Ok(byte_data) = hex::decode(&self.data) {
-            if let Some(uinfo) =  get_log_from_token(db, &self.priv_token){
+            if let Some(uinfo) = get_log_from_token(db, &self.priv_token) {
                 Some(NewInfoSec {
                     log_id: uinfo.id,
                     server_timestamp: None,

@@ -151,9 +151,8 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, curr_time + 1);
     assert_eq!(json_res[0].lat, 32.0f64);
     assert_eq!(json_res[0].lon, 22.0f64);
@@ -170,10 +169,9 @@ async fn simple_location_post_get() {
         .add_query_param("uid", "1")
         .await;
     response.assert_status_ok();
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
 
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, curr_time + 2);
     assert_eq!(json_res[0].lat, 66.0f64);
     assert_eq!(json_res[0].lon, 77.0f64);
@@ -196,10 +194,9 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
 
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].device_timestamp, curr_time + 2);
     assert_eq!(json_res[0].lat, 66.0f64);
     assert_eq!(json_res[0].lon, 77.0f64);
@@ -230,7 +227,7 @@ async fn simple_location_post_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
 
     assert_eq!(json_res.len(), 4);
 }
@@ -435,7 +432,7 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
     assert_eq!(json_res.len(), 20);
 
     // Requesting 30 values without filtering out anything.
@@ -447,7 +444,7 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
     assert_eq!(json_res.len(), 30);
 
     // Requestingr 50 values without filtering out anything.
@@ -459,7 +456,7 @@ async fn test_cut_last_segment_get() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPoint>>();
+    let json_res = response.json::<Vec<APILogLocationPoint>>();
     assert_eq!(json_res.len(), 30);
 }
 
@@ -561,9 +558,8 @@ async fn simple_location_post_get_sec() {
         .await;
     response.assert_status_ok();
 
-    let json_res = response.json::<Vec<LogLocationPointSec>>();
+    let json_res = response.json::<Vec<APILogLocationPointSec>>();
     assert_eq!(json_res.len(), 1);
-    assert_eq!(json_res[0].log_id, 1);
     assert_eq!(json_res[0].data.len(), 3usize);
 
     let response = server
