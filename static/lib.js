@@ -38,7 +38,6 @@ function create_new_user(name, url) {
     return response.json();
   })
     .then(userInfo => {
-      document.getElementById('log_id').innerHTML = userInfo.id;
       document.getElementById('user_priv_token').innerHTML = userInfo.priv_token;
       document.getElementById('user_unique_url').innerHTML =  userInfo.unique_url;
 
@@ -60,8 +59,6 @@ function display_positions(allUserInfo){
     let userInfo = allUserInfo[0];
     let prevInfo = allUserInfo.slice(1);
 
-    document.getElementById('log_id').innerHTML = userInfo.log_id;
-    document.getElementById('user_location_id').innerHTML = userInfo.id;
     document.getElementById('user_latitude').innerHTML = userInfo.lat;
     document.getElementById('user_longitude').innerHTML = userInfo.lon;
 
@@ -187,8 +184,6 @@ async function load_last_position_sec(uniq_url) {
     var decoder = new TextDecoder("utf-8");
     var dec_json = JSON.parse(decoder.decode(plain_text_deciphered));
     dec_json.server_timestamp = res_json[u].server_timestamp;
-    dec_json.log_id = res_json[u].log_id;
-    dec_json.id = res_json[u].id;
     all_res.push(dec_json);
   }
   display_positions(all_res);

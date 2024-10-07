@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <meta charset="utf-8">
     <meta name="description" content="">
     <meta name="author" content=''>
@@ -21,50 +21,49 @@
             crossorigin=""></script>
 
     <title>Last Position</title>
-</head>
-<body>
-  <ul id="infobox">
-    <li>Log: <span id="log_id"/> </li>
-    <li>Measure uid: <span id="user_location_id"/> </li>
-    <li><i class="fa fa-wifi" aria-hidden="true"></i>: <span id="user_accuracy" /> </li>
-    <li>Location source: <span id="user_provider" /> </li>
+  </head>
+  <body>
+    <div id="infobox">
+      <h1>Last known location</h1>
+      <ul>
+        <li><i class="fa fa-wifi" aria-hidden="true"></i>: <span id="user_accuracy" /> </li>
+        <li>Location source: <span id="user_provider" /> </li>
 
-    <li>Latitude: <span id="user_latitude" /> </li>
-    <li>Longitude: <span id="user_longitude" /> </li>
-    <li>Altitude: <span id="user_altitude" /> </li>
+        <li>Latitude: <span id="user_latitude" /> </li>
+        <li>Longitude: <span id="user_longitude" /> </li>
+        <li>Altitude: <span id="user_altitude" /> </li>
 
-    <li>Speed: <span id="user_speed" /> </li>
-    <li><i class="fa fa-compass" aria-hidden="true"></i>: <span id="user_heading" /> </li>
+        <li>Speed: <span id="user_speed" /> </li>
+        <li><i class="fa fa-compass" aria-hidden="true"></i>: <span id="user_heading" /> </li>
 
-    <li><i class="fa fa-battery-three-quarters" aria-hidden="true"></i>: <span id="user_battery" /> </li>
+        <li><i class="fa fa-battery-three-quarters" aria-hidden="true"></i>: <span id="user_battery" /> </li>
 
-    <li>Device Timestamp: <span id="user_device_timestamp" /> </li>
-    <li>Server Timestamp: <span id="user_server_timestamp" /> </li>
+        <li>Device Timestamp: <span id="user_device_timestamp" /> </li>
+        <li>Server Timestamp: <span id="user_server_timestamp" /> </li>
+      </ul>
+      <p>
+        <a href="" id="osm_link">Openstreetmap link</a>
+      </p>
+    </div>
 
-  </ul>
+    <div id="map"></div>
 
-<p>
-  <a href="" id="osm_link">Openstreetmap link</a>
-</p>
+    <div>
+      <ol id="detailed-coords">
+      </ol>
+    </div>
 
- <div id="map"></div>
+  </body>
 
- <div>
-   <ol id="detailed-coords">
-   </ol>
- </div>
+  <script type="module">
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
 
-</body>
-
-<script type="module">
-  const queryString = window.location.search;
-  const urlParams = new URLSearchParams(queryString);
-
-  if (urlParams.get('sec') == '1') {
-    await load_last_position_sec(urlParams.get('u'));
-  } else {
-    await load_last_position(urlParams.get('u'));  
-  }
+    if (urlParams.get('sec') == '1') {
+      await load_last_position_sec(urlParams.get('u'));
+    } else {
+      await load_last_position(urlParams.get('u'));  
+    }
     
-</script>
+  </script>
 </html>
