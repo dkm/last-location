@@ -64,6 +64,42 @@ The server still has access to some informations:
   - for the tracking client
   - for the web client accessing the tracking information
  
+# Possible abuse
+There are many ways this service can be abused. Some examples:
+- DoS by flooding the service with new log requests
+- DoS by flooding the service with locations
+- using the encrypted data as a storage
+
+## Flood mitigation
+The service is intended to be used behind a reverse proxy (e.g. nginx, cady,
+apache). Here's a possible nginx config snippet that enforce rate limit on the
+API (1 request per second, with possible bursts of 5 reqs):
+
+``` nginx
+limit_req_zone $binary_remote_addr zone=last_rate_zone:10m rate=1r/s;
+limit_req_status 429;
+
+location / {
+    root /path/to/last-position/static;
+}
+
+location ~ ^/(s|api)/ {
+    limit_req zone=last_rate_zone burst=5 nodelay;
+    proxy_pass http://127.0.0.1:3000;
+    proxy_redirect    default;
+    proxy_set_header  Host $host;
+    proxy_set_header  X-Real-IP $remote_addr;
+    proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header  X-Forwarded-Host $server_name;
+    proxy_set_header  X-Forwarded-Proto $scheme;
+}
+```
+
+## Service as a Storage mitigation
+
+The rate limit (see above) and a strict 400 bytes size limit on the payload
+should refrain any abuse. The limit can probably be lowered as the average
+payload size is closer to 200 bytes.
 
 # Roadmap
 - ✅ prototype a MVP: existing Android client connects to an instance, provides location:
