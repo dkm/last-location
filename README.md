@@ -113,6 +113,6 @@ payload size is closer to 200 bytes.
 # License
 All the software is distributed under the terms of the [AGPLv3 or later](https://spdx.org/licenses/AGPL-3.0-or-later.html)
 The TLDR for this license:
-- you must provide the source code if you distribute a modified version of the software
+- you must provide the source code if you distribute the software
 - you must provide the source code if you use the software on a network server
 
