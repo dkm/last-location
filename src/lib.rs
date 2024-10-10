@@ -1,6 +1,7 @@
 pub mod models;
 pub mod schema;
 
+use std::time::{SystemTime, UNIX_EPOCH};
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use std::{fs::File, io::BufReader};
@@ -169,6 +170,14 @@ pub fn generate_new_log(
             return Err(Error::Undefined);
         }
     }
+
+    let creation_timestamp =
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Can't get epoch")
+            .as_secs() as i32;
+
+    set_last_activity(db, new_log.id, creation_timestamp)?;
 
     Ok(new_log)
 }
