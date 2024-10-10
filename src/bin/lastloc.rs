@@ -128,7 +128,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
             };
 
             if res.is_empty() {
-                return;
+                continue;
             }
 
             let ts_limit = res[(res.len() - 1) as usize];
@@ -176,7 +176,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let res = to_keep.load::<i32>(db).expect("Can't load last records");
             if res.is_empty() {
-                return;
+                continue;
             }
 
             let ts_limit = res[(limit_count - 1) as usize];
