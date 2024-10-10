@@ -9,7 +9,7 @@ use diesel::prelude::*;
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct LogInfo {
     pub id: i32,
-    //pub name: Option<String>,
+
     pub priv_token: Option<String>,
     pub unique_url: Option<String>,
     pub last_activity: Option<i32>,
@@ -175,7 +175,7 @@ impl NewInfo {
             }
         }
 
-        return true;
+        true
     }
 }
 
