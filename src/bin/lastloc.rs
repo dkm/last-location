@@ -99,6 +99,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
     let all_logs = get_all_logs(db).expect("failed to get logs, FIXME error handling");
 
+    // FIXME both case are identical, only the types change. Make it generic.
     for log in all_logs {
         if !secure {
             use last_position::schema::info::dsl::*;
@@ -111,7 +112,6 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let res = if let Some(limit_lt) = limit_lifetime {
                 let oldest_ts = cur_ts - limit_lt;
-                println!("oldest {}", oldest_ts);
                 info.select(server_timestamp)
                     .filter(log_id.eq(log.id).and(server_timestamp.ge(oldest_ts)))
                     .order(server_timestamp.desc())
@@ -158,31 +158,39 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
             //     .expect("Error counting existing measures");
         } else {
             use last_position::schema::info_sec::dsl::*;
+
             let old_count = info_sec
                 .filter(log_id.eq(log.id))
                 .count()
                 .first::<i64>(db)
                 .expect("Error counting existing log points");
 
-            if old_count < (limit_count as i64) {
-                continue;
-            }
+            let res = if let Some(limit_lt) = limit_lifetime {
+                let oldest_ts = cur_ts - limit_lt;
+                info_sec.select(server_timestamp)
+                    .filter(log_id.eq(log.id).and(server_timestamp.ge(oldest_ts)))
+                    .order(server_timestamp.desc())
+                    .limit(limit_count as i64)
+                    .load::<i32>(db)
+                    .expect("can't load last entries to keep")
+            } else {
+                info_sec.select(server_timestamp)
+                    .filter(log_id.eq(log.id))
+                    .order(server_timestamp.desc())
+                    .limit(limit_count as i64)
+                    .load::<i32>(db)
+                    .expect("can't load last entries to keep")
+            };
 
-            let to_keep = info_sec
-                .select(server_timestamp)
-                .filter(log_id.eq(log.id))
-                .order(server_timestamp.desc())
-                .limit(limit_count as i64);
-
-            let res = to_keep.load::<i32>(db).expect("Can't load last records");
             if res.is_empty() {
                 continue;
             }
 
-            let ts_limit = res[(limit_count - 1) as usize];
+            let ts_limit = res[(res.len() - 1) as usize];
 
             let to_expire = info_sec.filter(server_timestamp.lt(ts_limit));
 
+            // Keeping this for future "--verbose"
             // let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
             // println!("SQL: {}", sql);
 
@@ -190,18 +198,11 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
                 .count()
                 .first::<i64>(db)
                 .expect("Error counting rows to expire");
+
             println!(
                 "Log: {}, pre-count: {}, to expire: {}",
                 log.id, old_count, expire_count
             );
-
-            let _ = diesel::delete(to_expire).execute(db);
-
-            // let new_count = info_sec
-            //     .filter(log_id.eq(log.id))
-            //     .count()
-            //     .first::<i64>(db)
-            //     .expect("Error counting existing measures");
         }
     }
 }
