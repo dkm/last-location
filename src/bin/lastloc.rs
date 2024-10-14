@@ -133,7 +133,9 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let ts_limit = res[(res.len() - 1) as usize];
 
-            let to_expire = info.filter(server_timestamp.lt(ts_limit));
+            let to_expire = info
+                .filter(server_timestamp.lt(ts_limit))
+                .filter(log_id.eq(log.id));
 
             // Keeping this for future "--verbose"
             // let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
@@ -167,14 +169,16 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let res = if let Some(limit_lt) = limit_lifetime {
                 let oldest_ts = cur_ts - limit_lt;
-                info_sec.select(server_timestamp)
+                info_sec
+                    .select(server_timestamp)
                     .filter(log_id.eq(log.id).and(server_timestamp.ge(oldest_ts)))
                     .order(server_timestamp.desc())
                     .limit(limit_count as i64)
                     .load::<i32>(db)
                     .expect("can't load last entries to keep")
             } else {
-                info_sec.select(server_timestamp)
+                info_sec
+                    .select(server_timestamp)
                     .filter(log_id.eq(log.id))
                     .order(server_timestamp.desc())
                     .limit(limit_count as i64)
@@ -188,7 +192,9 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
 
             let ts_limit = res[(res.len() - 1) as usize];
 
-            let to_expire = info_sec.filter(server_timestamp.lt(ts_limit));
+            let to_expire = info_sec
+                .filter(server_timestamp.lt(ts_limit))
+                .filter(log_id.eq(log.id));
 
             // Keeping this for future "--verbose"
             // let sql = debug_query::<diesel::sqlite::Sqlite, _>(&to_expire).to_string();
