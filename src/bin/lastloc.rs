@@ -209,6 +209,7 @@ fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
                 "Log: {}, pre-count: {}, to expire: {}",
                 log.id, old_count, expire_count
             );
+            let _ = diesel::delete(to_expire).execute(db);
         }
     }
 }

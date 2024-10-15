@@ -292,3 +292,71 @@ fn expire_clear_2() {
             predicates::str::is_match(r"- \(dev ts:[0-9]*, srv ts:[0-9]*, lat:[0-9]*\.[0-9]*, lon:[0-9]*\.[0-9]*, alt:[0-9]*, speed:[0-9]*, dir:[0-9]*, acc:[0-9]*, prov:gps, bat:[0-9]* \)").unwrap().count(2)
         );
 }
+
+#[test]
+fn expire_crypt_1() {
+    let test_db = TestData::new("expire_crypt_1.sqlite");
+    let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    d.push("resources/tests/expire_crypt_1.json");
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db").arg(test_db.db_file_name).arg("init");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("create-log");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("create-log");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("add-to-log")
+        .arg("--data")
+        .arg(d.to_str().expect("error getting resources"))
+        .arg("--secure");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("expire-logs")
+        .arg("--max-count")
+        .arg("2")
+        .arg("--secure");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("list-locations")
+        .arg("--log-id")
+        .arg("2")
+        .arg("--secure");
+    cmd.assert().stdout(
+        predicates::str::is_match(r"- \[crypt\] \(srv ts:[0-9]*, data: 0x[a-f0-9]*\)")
+            .unwrap()
+            .count(2),
+    );
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("list-locations")
+        .arg("--log-id")
+        .arg("1")
+        .arg("--secure");
+
+    cmd.assert().stdout(
+        predicates::str::is_match(r"- \[crypt\] \(srv ts:[0-9]*, data: 0x[a-f0-9]*\)")
+            .unwrap()
+            .count(2),
+    );
+}
