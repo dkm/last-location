@@ -56,7 +56,8 @@ doesn't have access to the secret and can't decrypt the data.
 The common workflow is:
 - the client app creates a secret key
 - the client app encrypts location data and sends it to the server
-- the client crafts an URL with the secret key in the fragment identifier (part that is NOT sent to the server) 
+- the client crafts an URL with the secret key in the fragment identifier (part that is NOT sent to the server)
+- the user shares this URL with the people they want to grant access to the tracking data
 
 The server still has access to some informations:
 - the server stores a server-side timestamp along with every encrypted data
