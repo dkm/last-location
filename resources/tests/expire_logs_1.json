@@ -1,0 +1,28 @@
+[
+    {
+      "log_id" : 1,
+        "device_timestamp": 1727038236,
+        "server_timestamp": 1727038236,
+        "lon": 5.8873286,
+        "lat": 45.3075006,
+        "altitude": 500.0,
+        "speed": 10.0,
+        "direction": 120.0,
+        "accuracy": 33.0,
+        "loc_provider": "gps",
+        "battery": 99.0
+    },
+    {
+      "log_id" : 1,
+        "device_timestamp": 1727038358,
+        "server_timestamp": 1727038358,
+        "lon": 5.8875309,
+        "lat": 45.3059779,
+        "altitude": 500.0,
+        "speed": 10.0,
+        "direction": 120.0,
+        "accuracy": 33.0,
+        "loc_provider": "gps",
+        "battery": 99.0
+    }
+]

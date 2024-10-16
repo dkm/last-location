@@ -81,6 +81,26 @@ fn get_time() -> i32 {
     }
 }
 
+fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
+    use last_position::schema::logs::dsl::*;
+
+    let limit_lifetime = matches
+        .get_one::<String>("max-lifetime")
+        .and_then(|v| Some(v.parse::<i32>().expect("not an i32"))).expect("can't be missing");
+    let cur_ts = get_time();
+    let oldest_act = cur_ts - limit_lifetime;
+    let db = &mut establish_connection(db_url);
+    let to_expire = logs
+        .filter(last_activity.lt(oldest_act));
+    let expire_count = to_expire
+        .count()
+        .first::<i64>(db)
+        .expect("Error counting rows to expire");
+    println!("Expiring {} logs", expire_count);
+
+    let _ = diesel::delete(to_expire).execute(db);
+}
+
 fn do_expire_locations(db_url: &str, matches: &ArgMatches) {
     let limit_count = matches
         .get_one::<String>("max-count")
@@ -333,6 +353,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
         )
         .subcommand(
+            Command::new("expire-logs")
+                .arg(Arg::new("max-lifetime").long("max-lifetime"))
+        )
+        .subcommand(
             Command::new("create-log").arg(
                 Arg::new("no-token-url")
                     .long("no-token-url")
@@ -376,6 +400,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match matches.subcommand() {
         Some(("init", sub_matches)) => do_init(sql_db, sub_matches),
+        Some(("expire-logs", sub_matches)) => do_expire_logs(sql_db, sub_matches),
         Some(("expire-locations", sub_matches)) => do_expire_locations(sql_db, sub_matches),
         Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(sql_db, sub_matches),
         Some(("set-unique-url", sub_matches)) => do_set_unique_url(sql_db, sub_matches),

@@ -360,3 +360,67 @@ fn expire_crypt_1() {
             .count(2),
     );
 }
+
+#[test]
+fn expire_logs_1() {
+    let test_db = TestData::new("expire_logs_1.sqlite");
+    let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    d.push("resources/tests/expire_logs_1.json");
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db").arg(test_db.db_file_name).arg("init");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("create-log");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("create-log");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("add-to-log")
+        .arg("--data")
+        .arg(d.to_str().expect("error getting resources"));
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("expire-logs")
+        .arg("--max-lifetime")
+        .arg("1");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("list-locations")
+        .arg("--log-id")
+        .arg("1");
+    cmd.assert().stdout(
+        predicates::str::is_match(r"")
+            .unwrap()
+    );
+
+    let mut cmd = Command::cargo_bin("lastloc").unwrap();
+    cmd.arg("--sqlite-db")
+        .arg(test_db.db_file_name)
+        .arg("list-locations")
+        .arg("--log-id")
+        .arg("2");
+    cmd.assert().stdout(
+        predicates::str::is_match(r"")
+            .unwrap()
+    );
+
+
+
+}
