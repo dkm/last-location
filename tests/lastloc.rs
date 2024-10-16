@@ -171,7 +171,7 @@ fn expire_clear_1() {
     let mut cmd = Command::cargo_bin("lastloc").unwrap();
     cmd.arg("--sqlite-db")
         .arg(test_db.db_file_name)
-        .arg("expire-logs")
+        .arg("expire-locations")
         .arg("--max-count")
         .arg("10");
     cmd.assert().success();
@@ -191,7 +191,7 @@ fn expire_clear_1() {
     let mut cmd = Command::cargo_bin("lastloc").unwrap();
     cmd.arg("--sqlite-db")
         .arg(test_db.db_file_name)
-        .arg("expire-logs")
+        .arg("expire-locations")
         .arg("--max-count")
         .arg("5");
     cmd.assert().success();
@@ -213,7 +213,7 @@ fn expire_clear_1() {
     cmd.env("LASTLOC_MOCK_SERVER_TIME", "150")
         .arg("--sqlite-db")
         .arg(test_db.db_file_name)
-        .arg("expire-logs")
+        .arg("expire-locations")
         .arg("--max-count")
         .arg("5")
         .arg("--max-lifetime")
@@ -265,7 +265,7 @@ fn expire_clear_2() {
     let mut cmd = Command::cargo_bin("lastloc").unwrap();
     cmd.arg("--sqlite-db")
         .arg(test_db.db_file_name)
-        .arg("expire-logs")
+        .arg("expire-locations")
         .arg("--max-count")
         .arg("2");
     cmd.assert().success();
@@ -327,7 +327,7 @@ fn expire_crypt_1() {
     let mut cmd = Command::cargo_bin("lastloc").unwrap();
     cmd.arg("--sqlite-db")
         .arg(test_db.db_file_name)
-        .arg("expire-logs")
+        .arg("expire-locations")
         .arg("--max-count")
         .arg("2")
         .arg("--secure");

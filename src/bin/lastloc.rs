@@ -81,7 +81,7 @@ fn get_time() -> i32 {
     }
 }
 
-fn do_expire_logs(db_url: &str, matches: &ArgMatches) {
+fn do_expire_locations(db_url: &str, matches: &ArgMatches) {
     let limit_count = matches
         .get_one::<String>("max-count")
         .unwrap()
@@ -327,7 +327,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .subcommand(Command::new("init"))
         .subcommand(
-            Command::new("expire-logs")
+            Command::new("expire-locations")
                 .arg(Arg::new("max-lifetime").long("max-lifetime"))
                 .arg(Arg::new("max-count").long("max-count"))
                 .arg(Arg::new("secure").long("secure").action(ArgAction::SetTrue)),
@@ -376,7 +376,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match matches.subcommand() {
         Some(("init", sub_matches)) => do_init(sql_db, sub_matches),
-        Some(("expire-logs", sub_matches)) => do_expire_logs(sql_db, sub_matches),
+        Some(("expire-locations", sub_matches)) => do_expire_locations(sql_db, sub_matches),
         Some(("gen-priv-token", sub_matches)) => do_gen_priv_token(sql_db, sub_matches),
         Some(("set-unique-url", sub_matches)) => do_set_unique_url(sql_db, sub_matches),
         Some(("create-log", sub_matches)) => do_create_log(sql_db, sub_matches),
